@@ -1,0 +1,23 @@
+{
+  "name": "lopor-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Commercial-grade AI Workspace platform monorepo",
+  "scripts": {
+    "dev:frontend": "cd apps/frontend && npm run dev",
+    "dev:backend": "cd apps/backend && go run cmd/server/main.go",
+    "infra:up": "docker-compose up -d",
+    "infra:down": "docker-compose down",
+    "build:frontend": "cd apps/frontend && npm run build",
+    "build:backend": "cd apps/backend && go build -o bin/server cmd/server/main.go"
+  },
+  "keywords": [
+    "ai-workspace",
+    "rag",
+    "pgvector",
+    "go",
+    "nextjs"
+  ],
+  "author": "Lopor AI Engineering Team",
+  "license": "UNLICENSED"
+}
