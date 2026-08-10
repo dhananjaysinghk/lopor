@@ -39,11 +39,12 @@ func main() {
 	fmt.Printf("Executing migration command '%s' against %s...\n", command, dbName)
 
 	var sqlFile string
-	if command == "up" {
+	switch command {
+	case "up":
 		sqlFile = "migrations/000001_init_schema.up.sql"
-	} else if command == "down" {
+	case "down":
 		sqlFile = "migrations/000001_init_schema.down.sql"
-	} else {
+	default:
 		log.Fatalf("Unknown command: %s. Use 'up' or 'down'", command)
 	}
 
