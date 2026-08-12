@@ -7,11 +7,14 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/lopor-ai/lopor/internal/database"
 	"github.com/lopor-ai/lopor/internal/domain/auth"
+	"github.com/lopor-ai/lopor/internal/domain/chat"
 	"github.com/lopor-ai/lopor/internal/domain/workspace"
 	"github.com/lopor-ai/lopor/internal/middleware"
+	"github.com/lopor-ai/lopor/pkg/ai"
 	"github.com/lopor-ai/lopor/pkg/response"
 )
 
@@ -50,13 +53,23 @@ func NewServer(cfg Config) *fiber.App {
 	})
 
 	// Setup Repositories & Services
-	authRepo := auth.NewRepository(cfg.DB.Pool)
+	var pool *pgxpool.Pool
+	if cfg.DB != nil {
+		pool = cfg.DB.Pool
+	}
+
+	authRepo := auth.NewRepository(pool)
 	authService := auth.NewService(authRepo, cfg.JWTSecret)
 	authHandler := auth.NewHandler(authService)
 
-	wsRepo := workspace.NewRepository(cfg.DB.Pool)
+	wsRepo := workspace.NewRepository(pool)
 	wsService := workspace.NewService(wsRepo)
 	wsHandler := workspace.NewHandler(wsService)
+
+	aiClient := ai.NewClient("", "")
+	chatRepo := chat.NewRepository(pool)
+	chatService := chat.NewService(chatRepo)
+	chatHandler := chat.NewHandler(chatService, aiClient)
 
 	// API Route Group
 	api := app.Group("/api/v1")
@@ -74,6 +87,12 @@ func NewServer(cfg Config) *fiber.App {
 	wsGroup.Post("/", wsHandler.CreateWorkspace)
 	wsGroup.Get("/", wsHandler.GetUserWorkspaces)
 	wsGroup.Get("/:id", wsHandler.GetWorkspaceByID)
+
+	// Chat Endpoints
+	wsGroup.Post("/:wsId/chats", chatHandler.CreateChat)
+	wsGroup.Get("/:wsId/chats", chatHandler.GetWorkspaceChats)
+	wsGroup.Get("/:wsId/chats/:chatId", chatHandler.GetChatDetails)
+	wsGroup.Post("/:wsId/chats/:chatId/stream", chatHandler.StreamChatResponse)
 
 	log.Println("Routes successfully registered in Fiber Core Engine")
 	return app
