@@ -107,6 +107,18 @@ type Document struct {
 	UpdatedAt    time.Time       `json:"updated_at" db:"updated_at"`
 }
 
+// File represents uploaded asset or document file metadata
+type File struct {
+	ID          uuid.UUID `json:"id" db:"id"`
+	WorkspaceID uuid.UUID `json:"workspace_id" db:"workspace_id"`
+	Filename    string    `json:"filename" db:"filename"`
+	MimeType    string    `json:"mime_type" db:"mime_type"`
+	FileSize    int64     `json:"file_size" db:"file_size"`
+	StorageKey  string    `json:"storage_key" db:"storage_key"`
+	UploadedBy  uuid.UUID `json:"uploaded_by" db:"uploaded_by"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+}
+
 // Chat represents an AI conversation context
 type Chat struct {
 	ID          uuid.UUID `json:"id" db:"id"`

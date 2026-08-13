@@ -12,6 +12,7 @@ import (
 	"github.com/lopor-ai/lopor/internal/database"
 	"github.com/lopor-ai/lopor/internal/domain/auth"
 	"github.com/lopor-ai/lopor/internal/domain/chat"
+	"github.com/lopor-ai/lopor/internal/domain/rag"
 	"github.com/lopor-ai/lopor/internal/domain/workspace"
 	"github.com/lopor-ai/lopor/internal/middleware"
 	"github.com/lopor-ai/lopor/pkg/ai"
@@ -67,9 +68,13 @@ func NewServer(cfg Config) *fiber.App {
 	wsHandler := workspace.NewHandler(wsService)
 
 	aiClient := ai.NewClient("", "")
-	chatRepo := chat.NewRepository(pool)
+	chatRepo := chat.NewRepository(cfg.DB.Pool)
 	chatService := chat.NewService(chatRepo)
 	chatHandler := chat.NewHandler(chatService, aiClient)
+
+	ragRepo := rag.NewRepository(cfg.DB.Pool)
+	ragService := rag.NewService(ragRepo)
+	ragHandler := rag.NewHandler(ragService)
 
 	// API Route Group
 	api := app.Group("/api/v1")
@@ -93,6 +98,12 @@ func NewServer(cfg Config) *fiber.App {
 	wsGroup.Get("/:wsId/chats", chatHandler.GetWorkspaceChats)
 	wsGroup.Get("/:wsId/chats/:chatId", chatHandler.GetChatDetails)
 	wsGroup.Post("/:wsId/chats/:chatId/stream", chatHandler.StreamChatResponse)
+
+	// RAG Vector & File Ingestion Endpoints
+	wsGroup.Post("/:wsId/search/semantic", ragHandler.SemanticSearch)
+	wsGroup.Post("/:wsId/ingest", ragHandler.IngestText)
+	wsGroup.Post("/:wsId/files/upload", ragHandler.UploadFile)
+	wsGroup.Get("/:wsId/files", ragHandler.GetFiles)
 
 	log.Println("Routes successfully registered in Fiber Core Engine")
 	return app
