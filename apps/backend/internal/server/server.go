@@ -12,6 +12,7 @@ import (
 	"github.com/lopor-ai/lopor/internal/database"
 	"github.com/lopor-ai/lopor/internal/domain/auth"
 	"github.com/lopor-ai/lopor/internal/domain/chat"
+	"github.com/lopor-ai/lopor/internal/domain/document"
 	"github.com/lopor-ai/lopor/internal/domain/rag"
 	"github.com/lopor-ai/lopor/internal/domain/workspace"
 	"github.com/lopor-ai/lopor/internal/middleware"
@@ -76,6 +77,10 @@ func NewServer(cfg Config) *fiber.App {
 	ragService := rag.NewService(ragRepo)
 	ragHandler := rag.NewHandler(ragService)
 
+	docRepo := document.NewRepository(cfg.DB.Pool)
+	docService := document.NewService(docRepo)
+	docHandler := document.NewHandler(docService)
+
 	// API Route Group
 	api := app.Group("/api/v1")
 
@@ -104,6 +109,14 @@ func NewServer(cfg Config) *fiber.App {
 	wsGroup.Post("/:wsId/ingest", ragHandler.IngestText)
 	wsGroup.Post("/:wsId/files/upload", ragHandler.UploadFile)
 	wsGroup.Get("/:wsId/files", ragHandler.GetFiles)
+
+	// Documents & Folders Endpoints
+	wsGroup.Post("/:wsId/documents", docHandler.CreateDocument)
+	wsGroup.Get("/:wsId/documents", docHandler.GetWorkspaceDocuments)
+	wsGroup.Get("/:wsId/documents/:docId", docHandler.GetDocumentByID)
+	wsGroup.Patch("/:wsId/documents/:docId", docHandler.UpdateDocument)
+	wsGroup.Post("/:wsId/folders", docHandler.CreateFolder)
+	wsGroup.Get("/:wsId/folders", docHandler.GetWorkspaceFolders)
 
 	log.Println("Routes successfully registered in Fiber Core Engine")
 	return app
