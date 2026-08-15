@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/lopor-ai/lopor/internal/database"
+	"github.com/lopor-ai/lopor/internal/domain/agent"
 	"github.com/lopor-ai/lopor/internal/domain/auth"
 	"github.com/lopor-ai/lopor/internal/domain/chat"
 	"github.com/lopor-ai/lopor/internal/domain/document"
@@ -81,6 +82,10 @@ func NewServer(cfg Config) *fiber.App {
 	docService := document.NewService(docRepo)
 	docHandler := document.NewHandler(docService)
 
+	agentRepo := agent.NewRepository(cfg.DB.Pool)
+	agentService := agent.NewService(agentRepo)
+	agentHandler := agent.NewHandler(agentService)
+
 	// API Route Group
 	api := app.Group("/api/v1")
 
@@ -117,6 +122,12 @@ func NewServer(cfg Config) *fiber.App {
 	wsGroup.Patch("/:wsId/documents/:docId", docHandler.UpdateDocument)
 	wsGroup.Post("/:wsId/folders", docHandler.CreateFolder)
 	wsGroup.Get("/:wsId/folders", docHandler.GetWorkspaceFolders)
+
+	// Autonomous AI Agents Endpoints
+	wsGroup.Post("/:wsId/agents", agentHandler.CreateAgent)
+	wsGroup.Get("/:wsId/agents", agentHandler.GetWorkspaceAgents)
+	wsGroup.Post("/:wsId/agents/:agentId/execute", agentHandler.ExecuteAgent)
+	wsGroup.Delete("/:wsId/agents/:agentId", agentHandler.DeleteAgent)
 
 	log.Println("Routes successfully registered in Fiber Core Engine")
 	return app
