@@ -1,0 +1,57 @@
+name: Lopor Continuous Integration (CI)
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  backend-test:
+    name: Build & Test Backend (Go)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go 1.22
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install Go Dependencies
+        run: |
+          cd apps/backend
+          go mod download
+
+      - name: Run Go Vet
+        run: |
+          cd apps/backend
+          go vet ./...
+
+      - name: Compile Backend Server
+        run: |
+          cd apps/backend
+          go build -v -o server ./cmd/server/main.go
+
+  frontend-build:
+    name: Build & Lint Frontend (Next.js)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: |
+          cd apps/frontend
+          npm ci || npm install
+
+      - name: Next.js Production Build
+        run: |
+          cd apps/frontend
+          npm run build

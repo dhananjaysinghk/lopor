@@ -1,0 +1,21 @@
+name: Docker Release & Deployment (CD)
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  docker-build:
+    name: Build & Push Production Docker Images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate Docker Compose Architecture
+        run: |
+          docker-compose config

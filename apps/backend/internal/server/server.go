@@ -37,6 +37,7 @@ func NewServer(cfg Config) *fiber.App {
 
 	// Middleware Stack
 	app.Use(recover.New())
+	app.Use(middleware.PrometheusMetrics())
 	app.Use(logger.New(logger.Config{
 		Format: "[${time}] ${status} - ${latency} ${method} ${path}\n",
 	}))
