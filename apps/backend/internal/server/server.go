@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/websocket/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/lopor-ai/lopor/internal/database"
@@ -18,6 +19,7 @@ import (
 	"github.com/lopor-ai/lopor/internal/domain/workspace"
 	"github.com/lopor-ai/lopor/internal/middleware"
 	"github.com/lopor-ai/lopor/pkg/ai"
+	"github.com/lopor-ai/lopor/pkg/collaboration"
 	"github.com/lopor-ai/lopor/pkg/response"
 )
 
@@ -71,7 +73,7 @@ func NewServer(cfg Config) *fiber.App {
 	wsHandler := workspace.NewHandler(wsService)
 
 	aiClient := ai.NewClient("", "")
-	chatRepo := chat.NewRepository(cfg.DB.Pool)
+	chatRepo := chat.NewRepository(pool)
 	chatService := chat.NewService(chatRepo)
 	chatHandler := chat.NewHandler(chatService, aiClient)
 
@@ -129,6 +131,10 @@ func NewServer(cfg Config) *fiber.App {
 	wsGroup.Get("/:wsId/agents", agentHandler.GetWorkspaceAgents)
 	wsGroup.Post("/:wsId/agents/:agentId/execute", agentHandler.ExecuteAgent)
 	wsGroup.Delete("/:wsId/agents/:agentId", agentHandler.DeleteAgent)
+
+	// Real-Time WebSockets Collaborative Editing Route
+	app.Use("/ws", collaboration.WebSocketUpgradeMiddleware())
+	app.Get("/ws/workspaces/:wsId/documents/:docId", websocket.New(collaboration.HandleWebSocketConnection))
 
 	log.Println("Routes successfully registered in Fiber Core Engine")
 	return app

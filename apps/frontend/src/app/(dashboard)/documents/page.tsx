@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { FileText, FolderPlus, Plus, Save, Clock, Share2, Sparkles, Folder, Check } from "lucide-react";
+import { CollaborativePresence } from "@/components/documents/CollaborativePresence";
 import { useAuth } from "@/context/AuthContext";
 
 interface Doc {
@@ -91,8 +92,11 @@ export default function DocumentsPage() {
       <div className="flex-1 flex flex-col border border-zinc-800/80 bg-zinc-900/40 rounded-xl overflow-hidden shadow-2xl">
         {/* Editor Action Header Bar */}
         <div className="h-12 border-b border-zinc-800/80 px-6 flex items-center justify-between bg-zinc-950/60">
-          <div className="flex items-center gap-2 text-xs text-zinc-400">
-            <Clock size={14} /> Updated {activeDoc.updated_at}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-xs text-zinc-400">
+              <Clock size={14} /> Updated {activeDoc.updated_at}
+            </div>
+            <CollaborativePresence documentId={activeDoc.id} />
           </div>
 
           <div className="flex items-center gap-3">
