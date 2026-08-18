@@ -114,6 +114,7 @@ func NewServer(cfg Config) *fiber.App {
 
 	// RAG Vector & File Ingestion Endpoints
 	wsGroup.Post("/:wsId/search/semantic", ragHandler.SemanticSearch)
+	wsGroup.Post("/:wsId/search/hybrid", ragHandler.HybridSearch)
 	wsGroup.Post("/:wsId/ingest", ragHandler.IngestText)
 	wsGroup.Post("/:wsId/files/upload", ragHandler.UploadFile)
 	wsGroup.Get("/:wsId/files", ragHandler.GetFiles)

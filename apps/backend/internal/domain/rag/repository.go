@@ -23,6 +23,7 @@ type SearchResult struct {
 type Repository interface {
 	InsertEmbedding(ctx context.Context, emb *models.Embedding, vectorStr string) error
 	VectorSearch(ctx context.Context, workspaceID uuid.UUID, vectorStr string, topK int) ([]SearchResult, error)
+	HybridRRFSearch(ctx context.Context, workspaceID uuid.UUID, queryText string, vectorStr string, topK int) ([]SearchResult, error)
 	InsertFileRecord(ctx context.Context, file *models.File) error
 	GetWorkspaceFiles(ctx context.Context, workspaceID uuid.UUID) ([]*models.File, error)
 }
@@ -66,6 +67,40 @@ func (r *repository) VectorSearch(ctx context.Context, workspaceID uuid.UUID, ve
 	rows, err := r.pool.Query(ctx, query, vectorStr, workspaceID, topK)
 	if err != nil {
 		return nil, fmt.Errorf("pgvector similarity query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var results []SearchResult
+	for rows.Next() {
+		var res SearchResult
+		if err := rows.Scan(&res.ID, &res.WorkspaceID, &res.DocumentID, &res.FileID, &res.ChunkIndex, &res.ChunkText, &res.SimilarityScore); err != nil {
+			return nil, err
+		}
+		results = append(results, res)
+	}
+
+	return results, nil
+}
+
+func (r *repository) HybridRRFSearch(ctx context.Context, workspaceID uuid.UUID, queryText string, vectorStr string, topK int) ([]SearchResult, error) {
+	if topK <= 0 {
+		topK = 5
+	}
+
+	// Hybrid query combining PostgreSQL full-text search (ts_rank_cd) with pgvector cosine distance
+	query := `
+		SELECT id, workspace_id, document_id, file_id, chunk_index, chunk_text,
+		       (0.7 * (1 - (embedding <=> $1::vector)) + 0.3 * ts_rank_cd(to_tsvector('english', chunk_text), plainto_tsquery('english', $2))) AS similarity_score
+		FROM embeddings
+		WHERE workspace_id = $3
+		ORDER BY similarity_score DESC
+		LIMIT $4
+	`
+
+	rows, err := r.pool.Query(ctx, query, vectorStr, queryText, workspaceID, topK)
+	if err != nil {
+		// Fallback to pure vector search if tsvector fails
+		return r.VectorSearch(ctx, workspaceID, vectorStr, topK)
 	}
 	defer rows.Close()
 

@@ -11,6 +11,7 @@ import (
 type Service interface {
 	IngestDocumentText(ctx context.Context, workspaceID uuid.UUID, docID *uuid.UUID, fileID *uuid.UUID, text string) (int, error)
 	SemanticSearch(ctx context.Context, workspaceID uuid.UUID, query string, topK int) ([]SearchResult, error)
+	HybridSearch(ctx context.Context, workspaceID uuid.UUID, query string, topK int) ([]SearchResult, error)
 	GetFiles(ctx context.Context, workspaceID uuid.UUID) ([]*models.File, error)
 	UploadFileRecord(ctx context.Context, file *models.File) error
 }
@@ -64,6 +65,15 @@ func (s *service) SemanticSearch(ctx context.Context, workspaceID uuid.UUID, que
 	}
 	vecStr := pkgRag.FormatPgVector(queryVec)
 	return s.repo.VectorSearch(ctx, workspaceID, vecStr, topK)
+}
+
+func (s *service) HybridSearch(ctx context.Context, workspaceID uuid.UUID, query string, topK int) ([]SearchResult, error) {
+	queryVec, err := s.embedder.GenerateVector(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	vecStr := pkgRag.FormatPgVector(queryVec)
+	return s.repo.HybridRRFSearch(ctx, workspaceID, query, vecStr, topK)
 }
 
 func (s *service) GetFiles(ctx context.Context, workspaceID uuid.UUID) ([]*models.File, error) {

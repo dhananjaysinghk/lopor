@@ -51,6 +51,41 @@ func (h *Handler) SemanticSearch(c *fiber.Ctx) error {
 	})
 }
 
+func (h *Handler) HybridSearch(c *fiber.Ctx) error {
+	wsIDParam := c.Params("wsId")
+	wsID, err := uuid.Parse(wsIDParam)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "INVALID_UUID", "Invalid workspace ID", nil)
+	}
+
+	type SearchRequest struct {
+		Query string `json:"query"`
+		TopK  int    `json:"top_k"`
+	}
+
+	var req SearchRequest
+	if err := c.BodyParser(&req); err != nil || req.Query == "" {
+		return response.Error(c, fiber.StatusBadRequest, "INVALID_QUERY", "Search query text is required", nil)
+	}
+
+	if req.TopK <= 0 {
+		req.TopK = 5
+	}
+
+	results, err := h.service.HybridSearch(c.Context(), wsID, req.Query, req.TopK)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, "HYBRID_SEARCH_FAILED", err.Error(), nil)
+	}
+
+	return response.Success(c, fiber.StatusOK, "RRF hybrid search results retrieved", fiber.Map{
+		"query":        req.Query,
+		"top_k":        req.TopK,
+		"count":        len(results),
+		"rrf_fused":    true,
+		"results":      results,
+	})
+}
+
 func (h *Handler) IngestText(c *fiber.Ctx) error {
 	wsIDParam := c.Params("wsId")
 	wsID, err := uuid.Parse(wsIDParam)
