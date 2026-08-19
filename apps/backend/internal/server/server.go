@@ -15,11 +15,13 @@ import (
 	"github.com/lopor-ai/lopor/internal/domain/auth"
 	"github.com/lopor-ai/lopor/internal/domain/chat"
 	"github.com/lopor-ai/lopor/internal/domain/document"
+	"github.com/lopor-ai/lopor/internal/domain/organization"
 	"github.com/lopor-ai/lopor/internal/domain/rag"
 	"github.com/lopor-ai/lopor/internal/domain/workspace"
 	"github.com/lopor-ai/lopor/internal/middleware"
 	"github.com/lopor-ai/lopor/pkg/ai"
 	"github.com/lopor-ai/lopor/pkg/collaboration"
+	"github.com/lopor-ai/lopor/pkg/email"
 	"github.com/lopor-ai/lopor/pkg/response"
 )
 
@@ -89,6 +91,11 @@ func NewServer(cfg Config) *fiber.App {
 	agentService := agent.NewService(agentRepo)
 	agentHandler := agent.NewHandler(agentService)
 
+	mailer := email.NewMailer("", "", "")
+	orgRepo := organization.NewRepository(cfg.DB.Pool)
+	orgService := organization.NewService(orgRepo, mailer)
+	orgHandler := organization.NewHandler(orgService)
+
 	// API Route Group
 	api := app.Group("/api/v1")
 
@@ -99,6 +106,13 @@ func NewServer(cfg Config) *fiber.App {
 	authGroup.Post("/refresh", authHandler.Refresh)
 	authGroup.Post("/logout", authHandler.Logout)
 	authGroup.Get("/me", middleware.Protected(cfg.JWTSecret), authHandler.GetMe)
+
+	// Organization & Multi-Tenancy Endpoints
+	orgGroup := api.Group("/organizations", middleware.Protected(cfg.JWTSecret))
+	orgGroup.Post("/", orgHandler.CreateOrganization)
+	orgGroup.Get("/", orgHandler.GetUserOrganizations)
+	orgGroup.Get("/:orgId/members", orgHandler.GetOrganizationMembers)
+	orgGroup.Post("/:orgId/invite", orgHandler.InviteMember)
 
 	// Workspace Endpoints
 	wsGroup := api.Group("/workspaces", middleware.Protected(cfg.JWTSecret))
