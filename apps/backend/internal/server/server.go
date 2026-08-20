@@ -16,6 +16,7 @@ import (
 	"github.com/lopor-ai/lopor/internal/domain/chat"
 	"github.com/lopor-ai/lopor/internal/domain/document"
 	"github.com/lopor-ai/lopor/internal/domain/organization"
+	"github.com/lopor-ai/lopor/internal/domain/prompt"
 	"github.com/lopor-ai/lopor/internal/domain/rag"
 	"github.com/lopor-ai/lopor/internal/domain/workspace"
 	"github.com/lopor-ai/lopor/internal/middleware"
@@ -96,6 +97,10 @@ func NewServer(cfg Config) *fiber.App {
 	orgService := organization.NewService(orgRepo, mailer)
 	orgHandler := organization.NewHandler(orgService)
 
+	promptRepo := prompt.NewRepository(cfg.DB.Pool)
+	promptService := prompt.NewService(promptRepo)
+	promptHandler := prompt.NewHandler(promptService)
+
 	// API Route Group
 	api := app.Group("/api/v1")
 
@@ -119,6 +124,12 @@ func NewServer(cfg Config) *fiber.App {
 	wsGroup.Post("/", wsHandler.CreateWorkspace)
 	wsGroup.Get("/", wsHandler.GetUserWorkspaces)
 	wsGroup.Get("/:id", wsHandler.GetWorkspaceByID)
+
+	// Prompt Templates & Studio Endpoints
+	wsGroup.Post("/:wsId/prompts", promptHandler.CreatePrompt)
+	wsGroup.Get("/:wsId/prompts", promptHandler.GetWorkspacePrompts)
+	wsGroup.Post("/:wsId/prompts/:promptId/execute", promptHandler.SubstituteVariables)
+	wsGroup.Delete("/:wsId/prompts/:promptId", promptHandler.DeletePrompt)
 
 	// Chat Endpoints
 	wsGroup.Post("/:wsId/chats", chatHandler.CreateChat)
