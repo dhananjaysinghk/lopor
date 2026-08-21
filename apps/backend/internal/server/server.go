@@ -9,12 +9,14 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/websocket/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/lopor-ai/lopor/internal/database"
 	"github.com/lopor-ai/lopor/internal/domain/agent"
 	"github.com/lopor-ai/lopor/internal/domain/auth"
 	"github.com/lopor-ai/lopor/internal/domain/chat"
 	"github.com/lopor-ai/lopor/internal/domain/document"
+	"github.com/lopor-ai/lopor/internal/domain/job"
 	"github.com/lopor-ai/lopor/internal/domain/organization"
 	"github.com/lopor-ai/lopor/internal/domain/prompt"
 	"github.com/lopor-ai/lopor/internal/domain/rag"
@@ -23,6 +25,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/ai"
 	"github.com/lopor-ai/lopor/pkg/collaboration"
 	"github.com/lopor-ai/lopor/pkg/email"
+	"github.com/lopor-ai/lopor/pkg/jobqueue"
 	"github.com/lopor-ai/lopor/pkg/response"
 )
 
@@ -101,6 +104,13 @@ func NewServer(cfg Config) *fiber.App {
 	promptService := prompt.NewService(promptRepo)
 	promptHandler := prompt.NewHandler(promptService)
 
+	var redisConn *redis.Client
+	if cfg.Redis != nil {
+		redisConn = cfg.Redis.Client
+	}
+	queue := jobqueue.NewQueue(redisConn, "lopor_jobs_queue")
+	jobHandler := job.NewHandler(queue)
+
 	// API Route Group
 	api := app.Group("/api/v1")
 
@@ -111,6 +121,11 @@ func NewServer(cfg Config) *fiber.App {
 	authGroup.Post("/refresh", authHandler.Refresh)
 	authGroup.Post("/logout", authHandler.Logout)
 	authGroup.Get("/me", middleware.Protected(cfg.JWTSecret), authHandler.GetMe)
+
+	// Async Job Queue Endpoints
+	jobsGroup := api.Group("/jobs", middleware.Protected(cfg.JWTSecret))
+	jobsGroup.Post("/enqueue", jobHandler.EnqueueJob)
+	jobsGroup.Get("/status/:jobId", jobHandler.GetJobStatus)
 
 	// Organization & Multi-Tenancy Endpoints
 	orgGroup := api.Group("/organizations", middleware.Protected(cfg.JWTSecret))
