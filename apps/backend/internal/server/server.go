@@ -127,6 +127,13 @@ func NewServer(cfg Config) *fiber.App {
 	jobsGroup.Post("/enqueue", jobHandler.EnqueueJob)
 	jobsGroup.Get("/status/:jobId", jobHandler.GetJobStatus)
 
+	// Multi-Model AI Gateway Endpoints
+	aiRouter := ai.NewModelRouter()
+	api.Get("/ai/models", func(c *fiber.Ctx) error {
+		models := aiRouter.GetAvailableModels()
+		return response.Success(c, fiber.StatusOK, "Available AI models retrieved", models)
+	})
+
 	// Organization & Multi-Tenancy Endpoints
 	orgGroup := api.Group("/organizations", middleware.Protected(cfg.JWTSecret))
 	orgGroup.Post("/", orgHandler.CreateOrganization)

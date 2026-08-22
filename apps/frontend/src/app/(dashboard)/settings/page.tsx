@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { User, Key, Shield, Moon, Globe, Copy, Check, Plus, Trash2, Sliders } from "lucide-react";
+import { AIProvidersVault } from "@/components/settings/AIProvidersVault";
 import { useAuth } from "@/context/AuthContext";
 
 export default function SettingsPage() {
@@ -94,26 +95,30 @@ export default function SettingsPage() {
       )}
 
       {activeTab === "api-keys" && (
-        <div className="p-6 rounded-xl border border-zinc-800/80 bg-zinc-900/40 space-y-4 shadow-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-white">Active Secret API Keys</h3>
-              <p className="text-xs text-zinc-400 mt-0.5">Use keys to authenticate REST and RAG endpoints programmatically.</p>
-            </div>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium shadow-md shadow-indigo-600/20 transition-all">
-              <Plus size={14} /> Create Secret Key
-            </button>
-          </div>
+        <div className="space-y-6">
+          <AIProvidersVault />
 
-          <div className="p-4 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-between font-mono text-xs">
-            <span className="text-indigo-300">{apiKey}</span>
-            <button
-              onClick={copyApiKey}
-              className="flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-800 text-zinc-400 hover:text-white text-[11px]"
-            >
-              {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-              <span>{copied ? "Copied" : "Copy Key"}</span>
-            </button>
+          <div className="p-6 rounded-xl border border-zinc-800/80 bg-zinc-900/40 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-white">Active Secret API Keys</h3>
+                <p className="text-xs text-zinc-400 mt-0.5">Use keys to authenticate REST and RAG endpoints programmatically.</p>
+              </div>
+              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium shadow-md shadow-indigo-600/20 transition-all">
+                <Plus size={14} /> Create Secret Key
+              </button>
+            </div>
+
+            <div className="p-4 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-between font-mono text-xs">
+              <span className="text-indigo-300">{apiKey}</span>
+              <button
+                onClick={copyApiKey}
+                className="flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-800 text-zinc-400 hover:text-white text-[11px]"
+              >
+                {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                <span>{copied ? "Copied" : "Copy Key"}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
