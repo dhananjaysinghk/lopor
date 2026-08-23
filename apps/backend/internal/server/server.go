@@ -16,6 +16,7 @@ import (
 	"github.com/lopor-ai/lopor/internal/domain/auth"
 	"github.com/lopor-ai/lopor/internal/domain/chat"
 	"github.com/lopor-ai/lopor/internal/domain/document"
+	"github.com/lopor-ai/lopor/internal/domain/graph"
 	"github.com/lopor-ai/lopor/internal/domain/job"
 	"github.com/lopor-ai/lopor/internal/domain/organization"
 	"github.com/lopor-ai/lopor/internal/domain/prompt"
@@ -104,6 +105,10 @@ func NewServer(cfg Config) *fiber.App {
 	promptService := prompt.NewService(promptRepo)
 	promptHandler := prompt.NewHandler(promptService)
 
+	graphRepo := graph.NewRepository(cfg.DB.Pool)
+	graphService := graph.NewService(graphRepo)
+	graphHandler := graph.NewHandler(graphService)
+
 	var redisConn *redis.Client
 	if cfg.Redis != nil {
 		redisConn = cfg.Redis.Client
@@ -146,6 +151,9 @@ func NewServer(cfg Config) *fiber.App {
 	wsGroup.Post("/", wsHandler.CreateWorkspace)
 	wsGroup.Get("/", wsHandler.GetUserWorkspaces)
 	wsGroup.Get("/:id", wsHandler.GetWorkspaceByID)
+
+	// Knowledge Graph Endpoints
+	wsGroup.Get("/:wsId/graph", graphHandler.GetWorkspaceGraph)
 
 	// Prompt Templates & Studio Endpoints
 	wsGroup.Post("/:wsId/prompts", promptHandler.CreatePrompt)
