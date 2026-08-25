@@ -13,6 +13,7 @@ import (
 
 	"github.com/lopor-ai/lopor/internal/database"
 	"github.com/lopor-ai/lopor/internal/domain/agent"
+	"github.com/lopor-ai/lopor/internal/domain/audit"
 	"github.com/lopor-ai/lopor/internal/domain/auth"
 	"github.com/lopor-ai/lopor/internal/domain/chat"
 	"github.com/lopor-ai/lopor/internal/domain/document"
@@ -109,6 +110,10 @@ func NewServer(cfg Config) *fiber.App {
 	graphService := graph.NewService(graphRepo)
 	graphHandler := graph.NewHandler(graphService)
 
+	auditRepo := audit.NewRepository(cfg.DB.Pool)
+	auditService := audit.NewService(auditRepo)
+	auditHandler := audit.NewHandler(auditService)
+
 	var redisConn *redis.Client
 	if cfg.Redis != nil {
 		redisConn = cfg.Redis.Client
@@ -154,6 +159,10 @@ func NewServer(cfg Config) *fiber.App {
 
 	// Knowledge Graph Endpoints
 	wsGroup.Get("/:wsId/graph", graphHandler.GetWorkspaceGraph)
+
+	// Audit Logs Endpoints
+	wsGroup.Get("/:wsId/audit-logs", auditHandler.GetWorkspaceAuditLogs)
+	wsGroup.Get("/:wsId/audit-logs/export", auditHandler.ExportAuditLogsCSV)
 
 	// Prompt Templates & Studio Endpoints
 	wsGroup.Post("/:wsId/prompts", promptHandler.CreatePrompt)
