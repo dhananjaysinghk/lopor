@@ -44,7 +44,12 @@ func (c *Client) StreamCompletion(ctx context.Context, req ChatCompletionRequest
 		return fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.BaseURL+"/chat/completions", bytes.NewBuffer(bodyBytes))
+	endpointURL := c.BaseURL + "/chat/completions"
+	if strings.Contains(c.BaseURL, "generativelanguage.googleapis.com") && c.APIKey != "" {
+		endpointURL += "?key=" + c.APIKey
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", endpointURL, bytes.NewBuffer(bodyBytes))
 	if err != nil {
 		return fmt.Errorf("failed to create http request: %w", err)
 	}
@@ -52,6 +57,7 @@ func (c *Client) StreamCompletion(ctx context.Context, req ChatCompletionRequest
 	httpReq.Header.Set("Content-Type", "application/json")
 	if c.APIKey != "" {
 		httpReq.Header.Set("Authorization", "Bearer "+c.APIKey)
+		httpReq.Header.Set("x-goog-api-key", c.APIKey)
 	}
 
 	client := &http.Client{}

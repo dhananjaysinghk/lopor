@@ -23,7 +23,7 @@ export default function ChatPage() {
   ]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("gpt-4o");
+  const [selectedModel, setSelectedModel] = useState("gemini-3.6-flash");
 
   const promptTemplates = [
     { title: "Code Review", prompt: "Perform a security & performance code review on this Go struct:", icon: Code },
@@ -54,24 +54,80 @@ export default function ChatPage() {
     };
     setMessages((prev) => [...prev, initialAssistantMsg]);
 
-    // Simulate word-by-word streaming effect (connecting to SSE backend endpoint)
-    const simulatedResponse = `Analyzing prompt: "${promptText}" against workspace vector index...\n\nHere is the engineered solution:\n\n\`\`\`go\npackage main\n\nimport "fmt"\n\nfunc Main() {\n    fmt.Println("Lopor AI SSE Stream Executed Successfully")\n}\n\`\`\`\n\nFeel free to ask follow-up questions!`;
+    try {
+      const wsId = activeWorkspace?.id || "00000000-0000-0000-0000-000000000001";
+      const chatId = "00000000-0000-0000-0000-000000000002";
+      const response = await fetch(
+        `http://localhost:8080/api/v1/workspaces/${wsId}/chats/${chatId}/stream`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt: promptText,
+            model: selectedModel,
+          }),
+        }
+      );
 
-    let currentText = "";
-    const words = simulatedResponse.split(" ");
+      if (!response.ok || !response.body) {
+        throw new Error(`Backend error: ${response.statusText}`);
+      }
 
-    for (let i = 0; i < words.length; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 40));
-      currentText += (i === 0 ? "" : " ") + words[i];
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedContent = "";
 
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const dataStr = line.slice(6).trim();
+            if (dataStr === "[DONE]") continue;
+            try {
+              const data = JSON.parse(dataStr);
+              const deltaContent =
+                data.delta ||
+                data.content ||
+                data.choices?.[0]?.delta?.content ||
+                "";
+              if (deltaContent) {
+                accumulatedContent += deltaContent;
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMsgId
+                      ? { ...msg, content: accumulatedContent }
+                      : msg
+                  )
+                );
+              }
+            } catch {
+              // Ignore non-JSON lines or partial buffers
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error("Chat streaming error:", err);
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.id === assistantMsgId ? { ...msg, content: currentText } : msg
+          msg.id === assistantMsgId
+            ? {
+                ...msg,
+                content: `⚠️ **Error**: ${err?.message || "Failed to connect to backend engine at http://localhost:8080."}`,
+              }
+            : msg
         )
       );
+    } finally {
+      setIsStreaming(false);
     }
-
-    setIsStreaming(false);
   };
 
   return (
@@ -110,6 +166,7 @@ export default function ChatPage() {
               onChange={(e) => setSelectedModel(e.target.value)}
               className="bg-zinc-900 border border-zinc-800 rounded-md text-xs text-indigo-300 px-2 py-1 focus:outline-none"
             >
+              <option value="gemini-3.6-flash">Google Gemini 3.6 Flash (Recommended)</option>
               <option value="gpt-4o">OpenAI GPT-4o</option>
               <option value="claude-3-5">Claude 3.5 Sonnet</option>
               <option value="ollama-llama3">Ollama Llama 3 (Local)</option>
@@ -125,26 +182,23 @@ export default function ChatPage() {
           {messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex gap-3 max-w-3xl ${
-                msg.sender_role === "user" ? "ml-auto flex-row-reverse" : ""
-              }`}
+              className={`flex gap-3 max-w-3xl ${msg.sender_role === "user" ? "ml-auto flex-row-reverse" : ""
+                }`}
             >
               <div
-                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold ${
-                  msg.sender_role === "user"
+                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold ${msg.sender_role === "user"
                     ? "bg-indigo-600 text-white"
                     : "bg-gradient-to-br from-purple-600 to-indigo-600 text-white shadow-md shadow-indigo-500/20"
-                }`}
+                  }`}
               >
                 {msg.sender_role === "user" ? <User size={16} /> : <Bot size={16} />}
               </div>
 
               <div
-                className={`p-4 rounded-xl text-xs md:text-sm border shadow-sm ${
-                  msg.sender_role === "user"
+                className={`p-4 rounded-xl text-xs md:text-sm border shadow-sm ${msg.sender_role === "user"
                     ? "bg-indigo-600/15 border-indigo-500/30 text-zinc-100"
                     : "bg-zinc-950/80 border-zinc-800 text-zinc-200"
-                }`}
+                  }`}
               >
                 <MarkdownRenderer content={msg.content || (isStreaming ? "Thinking..." : "")} />
               </div>

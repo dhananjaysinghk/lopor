@@ -2,6 +2,7 @@ package server
 
 import (
 	"log"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -80,7 +81,9 @@ func NewServer(cfg Config) *fiber.App {
 	wsService := workspace.NewService(wsRepo)
 	wsHandler := workspace.NewHandler(wsService)
 
-	aiClient := ai.NewClient("", "")
+	openAIKey := os.Getenv("OPENAI_API_KEY")
+	openAIBaseURL := os.Getenv("OPENAI_BASE_URL")
+	aiClient := ai.NewClient(openAIKey, openAIBaseURL)
 	chatRepo := chat.NewRepository(pool)
 	chatService := chat.NewService(chatRepo)
 	chatHandler := chat.NewHandler(chatService, aiClient)
@@ -142,6 +145,18 @@ func NewServer(cfg Config) *fiber.App {
 	api.Get("/ai/models", func(c *fiber.Ctx) error {
 		models := aiRouter.GetAvailableModels()
 		return response.Success(c, fiber.StatusOK, "Available AI models retrieved", models)
+	})
+
+	// Public Developer API Endpoints
+	api.Get("/developer/openapi.json", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"openapi": "3.0.3",
+			"info": fiber.Map{
+				"title":       "Lopor AI Workspace API",
+				"version":     "1.0.0",
+				"description": "Production REST & SSE streaming endpoints for pgvector RAG, autonomous agents, and document collaboration.",
+			},
+		})
 	})
 
 	// Organization & Multi-Tenancy Endpoints

@@ -1,0 +1,94 @@
+openapi: 3.0.3
+info:
+  title: Lopor AI Workspace API
+  description: Enterprise AI productivity platform API for documents, pgvector RAG, autonomous agents, and real-time collaboration.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local Development Server
+paths:
+  /auth/register:
+    post:
+      summary: Register User
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                full_name:
+                  type: string
+      responses:
+        '201':
+          description: User Registered Successfully
+  /auth/login:
+    post:
+      summary: User Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Tokens Dispatched
+  /workspaces/{wsId}/search/hybrid:
+    post:
+      summary: Reciprocal Rank Fusion (RRF) Hybrid Search
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                top_k:
+                  type: integer
+      responses:
+        '200':
+          description: RRF Fused Results Returned
+  /workspaces/{wsId}/agents/{agentId}/execute:
+    post:
+      summary: Execute Autonomous AI Agent Tool Workflow
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                input_prompt:
+                  type: string
+      responses:
+        '200':
+          description: Execution Terminal Stream Completed

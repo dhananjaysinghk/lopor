@@ -2,7 +2,10 @@ package chat
 
 import (
 	"bufio"
+	"context"
+	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -88,11 +91,16 @@ func (h *Handler) StreamChatResponse(c *fiber.Ctx) error {
 
 	type StreamPayload struct {
 		Prompt string `json:"prompt"`
+		Model  string `json:"model"`
 	}
 
 	var payload StreamPayload
 	if err := c.BodyParser(&payload); err != nil || payload.Prompt == "" {
 		return response.Error(c, fiber.StatusBadRequest, "INVALID_PROMPT", "Prompt text is required", nil)
+	}
+
+	if payload.Model == "" {
+		payload.Model = "gpt-4o"
 	}
 
 	// Save User Message
@@ -110,31 +118,53 @@ func (h *Handler) StreamChatResponse(c *fiber.Ctx) error {
 	c.Set("Transfer-Encoding", "chunked")
 
 	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
-		// Mock / Real stream payload
 		fmt.Fprintf(w, "event: message_start\ndata: {\"role\":\"assistant\"}\n\n")
 		w.Flush()
 
-		// Stream content
-		responseChunks := []string{
-			"Here is ", "the response ", "from the Lopor ", "AI Engine! ",
-			"\n\n```go\nfunc HelloLopor() string {\n    return \"Enterprise AI System Online\"\n}\n```\n\n",
-			"I have parsed your prompt and integrated relevant workspace context.",
-		}
-
 		var fullAssistantContent string
-		for _, chunk := range responseChunks {
-			fullAssistantContent += chunk
-			fmt.Fprintf(w, "data: {\"delta\":\"%s\"}\n\n", chunk)
-			w.Flush()
+
+		if h.aiClient != nil && h.aiClient.APIKey != "" {
+			log.Printf("[Chat API] Streaming completion via OpenAI model '%s'...", payload.Model)
+			req := ai.ChatCompletionRequest{
+				Model: payload.Model,
+				Messages: []ai.ChatMessage{
+					{Role: "user", Content: payload.Prompt},
+				},
+				Stream: true,
+			}
+			err := h.aiClient.StreamCompletion(context.Background(), req, w)
+			if err != nil {
+				log.Printf("[Chat API Error] OpenAI streaming failed: %v", err)
+				errMessage := fmt.Sprintf("\n\n*(OpenAI API Error: %v)*", err)
+				dataBytes, _ := json.Marshal(map[string]string{"delta": errMessage})
+				fmt.Fprintf(w, "data: %s\n\n", string(dataBytes))
+				w.Flush()
+			}
+		} else {
+			// Fallback stream with valid JSON-escaped SSE chunks
+			responseChunks := []string{
+				"Here is ", "the response ", "from the Lopor ", "AI Engine! ",
+				"\n\n```go\nfunc HelloLopor() string {\n    return \"Enterprise AI System Online\"\n}\n```\n\n",
+				"I have parsed your prompt and integrated relevant workspace context.",
+			}
+
+			for _, chunk := range responseChunks {
+				fullAssistantContent += chunk
+				dataBytes, _ := json.Marshal(map[string]string{"delta": chunk})
+				fmt.Fprintf(w, "data: %s\n\n", string(dataBytes))
+				w.Flush()
+			}
 		}
 
 		// Save Assistant Message
-		assistantMsg := &models.Message{
-			ChatID:     chatID,
-			SenderRole: "assistant",
-			Content:    fullAssistantContent,
+		if fullAssistantContent != "" {
+			assistantMsg := &models.Message{
+				ChatID:     chatID,
+				SenderRole: "assistant",
+				Content:    fullAssistantContent,
+			}
+			_ = h.service.SaveMessage(context.Background(), assistantMsg)
 		}
-		_ = h.service.SaveMessage(c.Context(), assistantMsg)
 
 		fmt.Fprintf(w, "event: message_end\ndata: {\"status\":\"completed\"}\n\n")
 		w.Flush()

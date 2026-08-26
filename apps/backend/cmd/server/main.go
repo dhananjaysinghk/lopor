@@ -1,14 +1,18 @@
 package main
 
 import (
+	"bufio"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/lopor-ai/lopor/internal/database"
 	"github.com/lopor-ai/lopor/internal/server"
 )
 
 func main() {
+	loadEnvFile("../../.env", "../.env", ".env")
+
 	log.Println("Starting Lopor AI Workspace Backend Engine...")
 
 	dbHost := getEnv("DB_HOST", "localhost")
@@ -61,8 +65,37 @@ func main() {
 	}
 }
 
+func loadEnvFile(paths ...string) {
+	for _, path := range paths {
+		file, err := os.Open(path)
+		if err != nil {
+			continue
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				key := strings.TrimSpace(parts[0])
+				val := strings.TrimSpace(parts[1])
+				val = strings.Trim(val, `"'`)
+				if os.Getenv(key) == "" {
+					os.Setenv(key, val)
+				}
+			}
+		}
+		log.Printf("Loaded environment file from: %s", path)
+		break
+	}
+}
+
 func getEnv(key, fallback string) string {
-	if val, ok := os.LookupEnv(key); ok {
+	if val, ok := os.LookupEnv(key); ok && val != "" {
 		return val
 	}
 	return fallback
