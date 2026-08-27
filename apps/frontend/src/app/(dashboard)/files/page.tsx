@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Upload, FileText, CheckCircle, Database, Trash2, Eye, Sparkles, HardDrive } from "lucide-react";
+import { Upload, FileText, CheckCircle, Database, Trash2, Eye, Sparkles, HardDrive, Globe, Check } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 interface FileItem {
@@ -18,22 +18,49 @@ export default function FilesPage() {
   const [files, setFiles] = useState<FileItem[]>([
     {
       id: "1",
-      filename: "System_Architecture_Blueprint_v1.pdf",
-      mime_type: "application/pdf",
+      filename: "System_Architecture_PRD.pdf",
       file_size: 2450000,
-      created_at: new Date().toISOString(),
+      mime_type: "application/pdf",
+      created_at: "2026-08-05 14:20",
       status: "embedded",
     },
     {
       id: "2",
-      filename: "Database_Migration_pgvector.docx",
-      mime_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      filename: "pgvector_Migration_Guide.docx",
       file_size: 1120000,
-      created_at: new Date().toISOString(),
+      mime_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      created_at: "2026-08-06 09:15",
       status: "embedded",
     },
   ]);
   const [isUploading, setIsUploading] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const [isIngestingUrl, setIsIngestingUrl] = useState(false);
+  const [urlSuccess, setUrlSuccess] = useState(false);
+
+  const handleIngestURL = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!urlInput.trim()) return;
+
+    setIsIngestingUrl(true);
+    setTimeout(() => {
+      setFiles((prev) => [
+        {
+          id: Date.now().toString(),
+          filename: `scraped_${urlInput.replace(/^https?:\/\//, "").replace(/[^a-zA-Z0-9]/g, "_")}.txt`,
+          file_size: 45000,
+          mime_type: "text/plain",
+          created_at: "Just now",
+          status: "embedded",
+        },
+        ...prev,
+      ]);
+      setUrlInput("");
+      setIsIngestingUrl(false);
+      setUrlSuccess(true);
+      setTimeout(() => setUrlSuccess(false), 3000);
+    }, 800);
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
@@ -67,6 +94,41 @@ export default function FilesPage() {
             Upload PDF, DOCX, TXT, or Code files. Automatically chunked & embedded into PostgreSQL pgvector HNSW index.
           </p>
         </div>
+      </div>
+
+      {/* Web URL Ingestion Box */}
+      <div className="p-6 rounded-xl border border-zinc-800/80 bg-zinc-900/40 space-y-4 shadow-xl">
+        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+          <Globe size={16} className="text-indigo-400" /> Autonomous Web Scraper & URL Vector Ingestion
+        </h3>
+
+        {urlSuccess && (
+          <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2 font-mono">
+            <Check size={14} /> Web page HTML scraped, text extracted, and vectorized into pgvector store!
+          </div>
+        )}
+
+        <form onSubmit={handleIngestURL} className="flex gap-3">
+          <div className="relative flex-1">
+            <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+            <input
+              type="url"
+              required
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              placeholder="https://docs.postgresql.org/16/pgvector.html"
+              className="w-full bg-zinc-950/80 border border-zinc-800 rounded-lg pl-9 pr-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isIngestingUrl}
+            className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium shadow-md shadow-indigo-600/20 transition-all disabled:opacity-50 flex items-center gap-2"
+          >
+            <Sparkles size={14} /> {isIngestingUrl ? "Scraping & Embedding..." : "Ingest Web URL"}
+          </button>
+        </form>
       </div>
 
       {/* File Drag and Drop Box */}

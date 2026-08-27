@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lopor-ai/lopor/internal/domain/models"
 	"github.com/lopor-ai/lopor/pkg/response"
+	"github.com/lopor-ai/lopor/pkg/scraper"
 )
 
 type Handler struct {
@@ -112,6 +113,40 @@ func (h *Handler) IngestText(c *fiber.Ctx) error {
 		"title":       req.Title,
 		"chunks_read": chunkCount,
 		"status":      "embedded",
+	})
+}
+
+func (h *Handler) IngestURL(c *fiber.Ctx) error {
+	wsIDParam := c.Params("wsId")
+	wsID, err := uuid.Parse(wsIDParam)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "INVALID_UUID", "Invalid workspace ID", nil)
+	}
+
+	type IngestURLRequest struct {
+		URL string `json:"url"`
+	}
+
+	var req IngestURLRequest
+	if err := c.BodyParser(&req); err != nil || req.URL == "" {
+		return response.Error(c, fiber.StatusBadRequest, "INVALID_URL", "Web URL is required", nil)
+	}
+
+	webScraper := scraper.NewWebScraper()
+	extractedText, err := webScraper.ScrapeURL(c.Context(), req.URL)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "SCRAPE_FAILED", err.Error(), nil)
+	}
+
+	chunksCount, err := h.service.IngestDocumentText(c.Context(), wsID, nil, nil, extractedText)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, "INGEST_FAILED", err.Error(), nil)
+	}
+
+	return response.Success(c, fiber.StatusOK, "Web URL scraped & vectorized into pgvector store", fiber.Map{
+		"url":          req.URL,
+		"text_length":  len(extractedText),
+		"chunks_count": chunksCount,
 	})
 }
 
