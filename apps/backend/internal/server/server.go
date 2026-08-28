@@ -30,6 +30,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/email"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
 	"github.com/lopor-ai/lopor/pkg/response"
+	"github.com/lopor-ai/lopor/pkg/sandbox"
 )
 
 type Config struct {
@@ -145,6 +146,27 @@ func NewServer(cfg Config) *fiber.App {
 	api.Get("/ai/models", func(c *fiber.Ctx) error {
 		models := aiRouter.GetAvailableModels()
 		return response.Success(c, fiber.StatusOK, "Available AI models retrieved", models)
+	})
+
+	// Multi-Language Code Execution Sandbox Endpoints
+	sandboxCompiler := sandbox.NewCompiler()
+	api.Post("/sandbox/execute", middleware.Protected(cfg.JWTSecret), func(c *fiber.Ctx) error {
+		type SandboxRequest struct {
+			Language string `json:"language"`
+			Code     string `json:"code"`
+		}
+
+		var req SandboxRequest
+		if err := c.BodyParser(&req); err != nil || req.Code == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Language and Code snippet are required", nil)
+		}
+
+		result, err := sandboxCompiler.ExecuteCode(c.Context(), sandbox.Language(req.Language), req.Code)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "SANDBOX_FAILED", err.Error(), nil)
+		}
+
+		return response.Success(c, fiber.StatusOK, "Code sandbox execution completed", result)
 	})
 
 	// Public Developer API Endpoints
