@@ -225,6 +225,7 @@ func NewServer(cfg Config) *fiber.App {
 	wsGroup.Post("/:wsId/documents", docHandler.CreateDocument)
 	wsGroup.Get("/:wsId/documents", docHandler.GetWorkspaceDocuments)
 	wsGroup.Get("/:wsId/documents/:docId", docHandler.GetDocumentByID)
+	wsGroup.Post("/:wsId/documents/:id/summarize", docHandler.SummarizeDocument)
 	wsGroup.Patch("/:wsId/documents/:docId", docHandler.UpdateDocument)
 	wsGroup.Post("/:wsId/folders", docHandler.CreateFolder)
 	wsGroup.Get("/:wsId/folders", docHandler.GetWorkspaceFolders)

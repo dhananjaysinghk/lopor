@@ -49,6 +49,32 @@ func (h *Handler) GetWorkspaceDocuments(c *fiber.Ctx) error {
 	return response.Success(c, fiber.StatusOK, "Documents retrieved", docs)
 }
 
+func (h *Handler) SummarizeDocument(c *fiber.Ctx) error {
+	docIDParam := c.Params("id")
+	docID, err := uuid.Parse(docIDParam)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "INVALID_UUID", "Invalid document ID", nil)
+	}
+
+	doc, err := h.service.GetDocumentByID(c.Context(), docID)
+	if err != nil {
+		return response.Error(c, fiber.StatusNotFound, "NOT_FOUND", "Document not found", nil)
+	}
+
+	content := ""
+	if doc.Content != nil {
+		content = *doc.Content
+	}
+
+	summarizer := NewSummarizer(nil)
+	summary, err := summarizer.GenerateExecutiveSummary(c.Context(), docID, doc.Title, content)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, "SUMMARIZE_FAILED", err.Error(), nil)
+	}
+
+	return response.Success(c, fiber.StatusOK, "AI Executive Summary generated", summary)
+}
+
 func (h *Handler) GetDocumentByID(c *fiber.Ctx) error {
 	docIDParam := c.Params("docId")
 	docID, err := uuid.Parse(docIDParam)
