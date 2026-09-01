@@ -31,6 +31,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
 	"github.com/lopor-ai/lopor/pkg/response"
 	"github.com/lopor-ai/lopor/pkg/sandbox"
+	"github.com/lopor-ai/lopor/pkg/voice"
 )
 
 type Config struct {
@@ -239,6 +240,31 @@ func NewServer(cfg Config) *fiber.App {
 	// Real-Time WebSockets Collaborative Editing Route
 	app.Use("/ws", collaboration.WebSocketUpgradeMiddleware())
 	app.Get("/ws/workspaces/:wsId/documents/:docId", websocket.New(collaboration.HandleWebSocketConnection))
+
+	// Voice Dictation & Audio Transcription Endpoints
+	voiceTranscriber := voice.NewTranscriber()
+	wsGroup.Post("/:wsId/voice/transcribe", func(c *fiber.Ctx) error {
+		fileHeader, err := c.FormFile("audio")
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_AUDIO", "Audio file attachment is required", nil)
+		}
+
+		file, err := fileHeader.Open()
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "READ_ERROR", "Failed to open audio file", nil)
+		}
+		defer file.Close()
+
+		buf := make([]byte, fileHeader.Size)
+		_, _ = file.Read(buf)
+
+		result, err := voiceTranscriber.TranscribeAudioBytes(c.Context(), buf, fileHeader.Header.Get("Content-Type"))
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "TRANSCRIBE_FAILED", err.Error(), nil)
+		}
+
+		return response.Success(c, fiber.StatusOK, "Audio transcribed successfully", result)
+	})
 
 	log.Println("Routes successfully registered in Fiber Core Engine")
 	return app
