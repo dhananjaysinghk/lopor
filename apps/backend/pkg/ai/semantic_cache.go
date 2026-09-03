@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
+	
 	"log"
 	"time"
 
@@ -53,6 +53,6 @@ func (sc *SemanticCache) SetCachedResponse(ctx context.Context, query string, re
 }
 
 func (sc *SemanticCache) generateKey(query string) string {
-	hash := sha256.Sum256([]byte(fmt.Sprintf("semantic_cache:%s", query)))
+	hash := sha256.Sum256([]byte("semantic_cache:" + query))
 	return "scache:" + hex.EncodeToString(hash[:])
 }

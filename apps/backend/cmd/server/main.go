@@ -67,30 +67,39 @@ func main() {
 
 func loadEnvFile(paths ...string) {
 	for _, path := range paths {
-		file, err := os.Open(path)
-		if err != nil {
-			continue
-		}
-		defer file.Close()
-
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			if line == "" || strings.HasPrefix(line, "#") {
-				continue
+		loaded := func(p string) bool {
+			file, err := os.Open(p)
+			if err != nil {
+				return false
 			}
-			parts := strings.SplitN(line, "=", 2)
-			if len(parts) == 2 {
-				key := strings.TrimSpace(parts[0])
-				val := strings.TrimSpace(parts[1])
-				val = strings.Trim(val, `"'`)
-				if os.Getenv(key) == "" {
-					os.Setenv(key, val)
+			defer file.Close()
+
+			scanner := bufio.NewScanner(file)
+			for scanner.Scan() {
+				line := strings.TrimSpace(scanner.Text())
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
+				parts := strings.SplitN(line, "=", 2)
+				if len(parts) == 2 {
+					key := strings.TrimSpace(parts[0])
+					val := strings.TrimSpace(parts[1])
+					val = strings.Trim(val, `"` + "'")
+					if os.Getenv(key) == "" {
+						_ = os.Setenv(key, val)
+					}
 				}
 			}
+			if err := scanner.Err(); err != nil {
+				log.Printf("Warning: error reading env file %s: %v", p, err)
+			}
+			log.Printf("Loaded environment file from: %s", p)
+			return true
+		}(path)
+
+		if loaded {
+			break
 		}
-		log.Printf("Loaded environment file from: %s", path)
-		break
 	}
 }
 

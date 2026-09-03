@@ -31,6 +31,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
 	"github.com/lopor-ai/lopor/pkg/response"
 	"github.com/lopor-ai/lopor/pkg/sandbox"
+	"github.com/lopor-ai/lopor/pkg/search"
 	"github.com/lopor-ai/lopor/pkg/voice"
 )
 
@@ -221,6 +222,25 @@ func NewServer(cfg Config) *fiber.App {
 	wsGroup.Post("/:wsId/ingest/url", ragHandler.IngestURL)
 	wsGroup.Post("/:wsId/files/upload", ragHandler.UploadFile)
 	wsGroup.Get("/:wsId/files", ragHandler.GetFiles)
+
+	// Live Web Grounding Search Endpoints
+	webGrounder := search.NewWebGrounder()
+	wsGroup.Post("/:wsId/search/web-grounding", func(c *fiber.Ctx) error {
+		type SearchRequest struct {
+			Query string `json:"query"`
+		}
+		var req SearchRequest
+		if err := c.BodyParser(&req); err != nil || req.Query == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_QUERY", "Query text is required", nil)
+		}
+
+		res, err := webGrounder.GroundQuery(c.Context(), req.Query)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "GROUNDING_FAILED", err.Error(), nil)
+		}
+
+		return response.Success(c, fiber.StatusOK, "Live web grounding search completed", res)
+	})
 
 	// Documents & Folders Endpoints
 	wsGroup.Post("/:wsId/documents", docHandler.CreateDocument)
