@@ -26,6 +26,7 @@ import (
 	"github.com/lopor-ai/lopor/internal/domain/workspace"
 	"github.com/lopor-ai/lopor/internal/middleware"
 	"github.com/lopor-ai/lopor/pkg/ai"
+	"github.com/lopor-ai/lopor/pkg/codestudio"
 	"github.com/lopor-ai/lopor/pkg/collaboration"
 	"github.com/lopor-ai/lopor/pkg/email"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
@@ -240,6 +241,26 @@ func NewServer(cfg Config) *fiber.App {
 		}
 
 		return response.Success(c, fiber.StatusOK, "Live web grounding search completed", res)
+	})
+
+	// AI Code Studio GitHub Exporter Endpoints
+	codeExporter := codestudio.NewExporter()
+	wsGroup.Post("/:wsId/code/export-github", func(c *fiber.Ctx) error {
+		type ExportReq struct {
+			RepoName string                   `json:"repo_name"`
+			Scaffold codestudio.ProjectScaffold `json:"scaffold"`
+		}
+		var req ExportReq
+		if err := c.BodyParser(&req); err != nil || req.RepoName == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Repository name is required", nil)
+		}
+
+		res, err := codeExporter.ExportToGitHub(c.Context(), req.RepoName, req.Scaffold, "")
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "EXPORT_FAILED", err.Error(), nil)
+		}
+
+		return response.Success(c, fiber.StatusOK, "Project scaffold exported to GitHub repository", res)
 	})
 
 	// Documents & Folders Endpoints
