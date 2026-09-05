@@ -79,11 +79,11 @@ func (h *Handler) HybridSearch(c *fiber.Ctx) error {
 	}
 
 	return response.Success(c, fiber.StatusOK, "RRF hybrid search results retrieved", fiber.Map{
-		"query":        req.Query,
-		"top_k":        req.TopK,
-		"count":        len(results),
-		"rrf_fused":    true,
-		"results":      results,
+		"query":     req.Query,
+		"top_k":     req.TopK,
+		"count":     len(results),
+		"rrf_fused": true,
+		"results":   results,
 	})
 }
 

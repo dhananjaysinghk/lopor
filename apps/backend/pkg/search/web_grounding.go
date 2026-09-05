@@ -15,10 +15,10 @@ type WebSearchResult struct {
 }
 
 type GroundedResponse struct {
-	Query     string            `json:"query"`
+	Query      string            `json:"query"`
 	WebResults []WebSearchResult `json:"web_results"`
-	Answer    string            `json:"answer"`
-	Timestamp string            `json:"timestamp"`
+	Answer     string            `json:"answer"`
+	Timestamp  string            `json:"timestamp"`
 }
 
 type WebGrounder struct{}

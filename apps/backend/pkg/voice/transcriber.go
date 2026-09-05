@@ -7,9 +7,9 @@ import (
 )
 
 type TranscribeResult struct {
-	Transcript string `json:"transcript"`
-	Language   string `json:"language"`
-	Duration   string `json:"duration"`
+	Transcript string  `json:"transcript"`
+	Language   string  `json:"language"`
+	Duration   string  `json:"duration"`
 	Confidence float64 `json:"confidence"`
 }
 

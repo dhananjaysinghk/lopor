@@ -65,7 +65,7 @@ func (h *Handler) SubstituteVariables(c *fiber.Ctx) error {
 	}
 
 	return response.Success(c, fiber.StatusOK, "Variable substitution executed", fiber.Map{
-		"prompt_id":      promptID,
+		"prompt_id":     promptID,
 		"hydrated_text": resultText,
 	})
 }

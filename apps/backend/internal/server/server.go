@@ -33,6 +33,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/response"
 	"github.com/lopor-ai/lopor/pkg/sandbox"
 	"github.com/lopor-ai/lopor/pkg/search"
+	"github.com/lopor-ai/lopor/pkg/testgen"
 	"github.com/lopor-ai/lopor/pkg/voice"
 )
 
@@ -247,7 +248,7 @@ func NewServer(cfg Config) *fiber.App {
 	codeExporter := codestudio.NewExporter()
 	wsGroup.Post("/:wsId/code/export-github", func(c *fiber.Ctx) error {
 		type ExportReq struct {
-			RepoName string                   `json:"repo_name"`
+			RepoName string                     `json:"repo_name"`
 			Scaffold codestudio.ProjectScaffold `json:"scaffold"`
 		}
 		var req ExportReq
@@ -261,6 +262,22 @@ func NewServer(cfg Config) *fiber.App {
 		}
 
 		return response.Success(c, fiber.StatusOK, "Project scaffold exported to GitHub repository", res)
+	})
+
+	// AI Automated Unit Test Generator Endpoints
+	testGen := testgen.NewGenerator()
+	wsGroup.Post("/:wsId/code/test-gen", func(c *fiber.Ctx) error {
+		var req testgen.TestGenRequest
+		if err := c.BodyParser(&req); err != nil || req.SourceCode == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Source code is required", nil)
+		}
+
+		res, err := testGen.GenerateTestSuite(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "TEST_GEN_FAILED", err.Error(), nil)
+		}
+
+		return response.Success(c, fiber.StatusOK, "Automated unit test suite generated successfully", res)
 	})
 
 	// Documents & Folders Endpoints

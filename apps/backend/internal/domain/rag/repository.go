@@ -11,13 +11,13 @@ import (
 )
 
 type SearchResult struct {
-	ID              uuid.UUID `json:"id"`
-	WorkspaceID     uuid.UUID `json:"workspace_id"`
+	ID              uuid.UUID  `json:"id"`
+	WorkspaceID     uuid.UUID  `json:"workspace_id"`
 	DocumentID      *uuid.UUID `json:"document_id,omitempty"`
 	FileID          *uuid.UUID `json:"file_id,omitempty"`
-	ChunkIndex      int       `json:"chunk_index"`
-	ChunkText       string    `json:"chunk_text"`
-	SimilarityScore float64   `json:"similarity_score"`
+	ChunkIndex      int        `json:"chunk_index"`
+	ChunkText       string     `json:"chunk_text"`
+	SimilarityScore float64    `json:"similarity_score"`
 }
 
 type Repository interface {

@@ -4,9 +4,9 @@ import "github.com/gofiber/fiber/v2"
 
 // Response represents a standard JSON API response structure
 type Response struct {
-	Success bool        `json:"success"`
-	Message string      `json:"message,omitempty"`
-	Data    interface{} `json:"data,omitempty"`
+	Success bool         `json:"success"`
+	Message string       `json:"message,omitempty"`
+	Data    interface{}  `json:"data,omitempty"`
 	Error   *ErrorDetail `json:"error,omitempty"`
 }
 
