@@ -21,6 +21,7 @@ import (
 	"github.com/lopor-ai/lopor/internal/domain/graph"
 	"github.com/lopor-ai/lopor/internal/domain/job"
 	"github.com/lopor-ai/lopor/internal/domain/organization"
+	"github.com/lopor-ai/lopor/internal/domain/persona"
 	"github.com/lopor-ai/lopor/internal/domain/prompt"
 	"github.com/lopor-ai/lopor/internal/domain/rag"
 	"github.com/lopor-ai/lopor/internal/domain/workspace"
@@ -113,6 +114,10 @@ func NewServer(cfg Config) *fiber.App {
 	promptRepo := prompt.NewRepository(cfg.DB.Pool)
 	promptService := prompt.NewService(promptRepo)
 	promptHandler := prompt.NewHandler(promptService)
+
+	personaRepo := persona.NewRepository(cfg.DB.Pool)
+	personaService := persona.NewService(personaRepo)
+	personaHandler := persona.NewHandler(personaService)
 
 	graphRepo := graph.NewRepository(cfg.DB.Pool)
 	graphService := graph.NewService(graphRepo)
@@ -210,6 +215,14 @@ func NewServer(cfg Config) *fiber.App {
 	wsGroup.Get("/:wsId/prompts", promptHandler.GetWorkspacePrompts)
 	wsGroup.Post("/:wsId/prompts/:promptId/execute", promptHandler.SubstituteVariables)
 	wsGroup.Delete("/:wsId/prompts/:promptId", promptHandler.DeletePrompt)
+
+	// AI Personas & System Prompt Management Endpoints
+	wsGroup.Post("/:wsId/personas", personaHandler.CreatePersona)
+	wsGroup.Get("/:wsId/personas", personaHandler.GetWorkspacePersonas)
+	wsGroup.Get("/:wsId/personas/:personaId", personaHandler.GetPersonaByID)
+	wsGroup.Put("/:wsId/personas/:personaId", personaHandler.UpdatePersona)
+	wsGroup.Post("/:wsId/personas/:personaId/default", personaHandler.SetDefaultPersona)
+	wsGroup.Delete("/:wsId/personas/:personaId", personaHandler.DeletePersona)
 
 	// Chat Endpoints
 	wsGroup.Post("/:wsId/chats", chatHandler.CreateChat)
