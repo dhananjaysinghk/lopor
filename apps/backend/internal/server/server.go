@@ -31,6 +31,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/collaboration"
 	"github.com/lopor-ai/lopor/pkg/email"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
+	"github.com/lopor-ai/lopor/pkg/observability"
 	"github.com/lopor-ai/lopor/pkg/response"
 	"github.com/lopor-ai/lopor/pkg/sandbox"
 	"github.com/lopor-ai/lopor/pkg/search"
@@ -134,6 +135,16 @@ func NewServer(cfg Config) *fiber.App {
 	queue := jobqueue.NewQueue(redisConn, "lopor_jobs_queue")
 	jobHandler := job.NewHandler(queue)
 
+	metricsCollector := observability.NewMetricsCollector(pool, redisConn)
+	app.Use(func(c *fiber.Ctx) error {
+		metricsCollector.IncRequests()
+		err := c.Next()
+		if c.Response().StatusCode() >= 400 {
+			metricsCollector.IncErrors()
+		}
+		return err
+	})
+
 	// API Route Group
 	api := app.Group("/api/v1")
 
@@ -149,6 +160,14 @@ func NewServer(cfg Config) *fiber.App {
 	jobsGroup := api.Group("/jobs", middleware.Protected(cfg.JWTSecret))
 	jobsGroup.Post("/enqueue", jobHandler.EnqueueJob)
 	jobsGroup.Get("/status/:jobId", jobHandler.GetJobStatus)
+
+	// Admin Metrics & Deep System Health Endpoints
+	api.Get("/admin/metrics/summary", middleware.Protected(cfg.JWTSecret), func(c *fiber.Ctx) error {
+		return response.Success(c, fiber.StatusOK, "System telemetry metrics summary retrieved", metricsCollector.CollectMetrics())
+	})
+	api.Get("/admin/health/deep-check", func(c *fiber.Ctx) error {
+		return response.Success(c, fiber.StatusOK, "Deep system health check completed", metricsCollector.PerformDeepHealthCheck(c.Context()))
+	})
 
 	// Multi-Model AI Gateway Endpoints
 	aiRouter := ai.NewModelRouter()
