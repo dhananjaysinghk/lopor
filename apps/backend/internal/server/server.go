@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -37,6 +38,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/search"
 	"github.com/lopor-ai/lopor/pkg/testgen"
 	"github.com/lopor-ai/lopor/pkg/voice"
+	"github.com/lopor-ai/lopor/pkg/zipengine"
 )
 
 type Config struct {
@@ -294,6 +296,28 @@ func NewServer(cfg Config) *fiber.App {
 		}
 
 		return response.Success(c, fiber.StatusOK, "Project scaffold exported to GitHub repository", res)
+	})
+
+	// Multi-Format Code & Project Zip Exporter Endpoints
+	zipEng := zipengine.NewZipEngine()
+	wsGroup.Post("/:wsId/code/export-zip", func(c *fiber.Ctx) error {
+		var req zipengine.ZipArchiveRequest
+		if err := c.BodyParser(&req); err != nil || len(req.Files) == 0 {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Files array cannot be empty", nil)
+		}
+
+		if req.ArchiveName == "" {
+			req.ArchiveName = "lopor_project_export.zip"
+		}
+
+		zipBytes, err := zipEng.CreateZipArchive(req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "ZIP_EXPORT_FAILED", err.Error(), nil)
+		}
+
+		c.Set("Content-Type", "application/zip")
+		c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", req.ArchiveName))
+		return c.Send(zipBytes)
 	})
 
 	// AI Automated Unit Test Generator Endpoints
