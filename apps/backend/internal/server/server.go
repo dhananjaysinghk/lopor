@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/websocket/v2"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
@@ -32,6 +33,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/collaboration"
 	"github.com/lopor-ai/lopor/pkg/email"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
+	"github.com/lopor-ai/lopor/pkg/metering"
 	"github.com/lopor-ai/lopor/pkg/observability"
 	"github.com/lopor-ai/lopor/pkg/response"
 	"github.com/lopor-ai/lopor/pkg/sandbox"
@@ -230,6 +232,49 @@ func NewServer(cfg Config) *fiber.App {
 	// Audit Logs Endpoints
 	wsGroup.Get("/:wsId/audit-logs", auditHandler.GetWorkspaceAuditLogs)
 	wsGroup.Get("/:wsId/audit-logs/export", auditHandler.ExportAuditLogsCSV)
+
+	// License & Usage Metering Endpoints
+	meterService := metering.NewMeterService()
+	wsGroup.Get("/:wsId/metering/usage", func(c *fiber.Ctx) error {
+		wsID, err := uuid.Parse(c.Params("wsId"))
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_WORKSPACE_ID", "Workspace ID is invalid", nil)
+		}
+		stats := meterService.GetWorkspaceUsage(c.Context(), wsID)
+		return response.Success(c, fiber.StatusOK, "Workspace usage metering stats retrieved", stats)
+	})
+
+	wsGroup.Post("/:wsId/metering/record", func(c *fiber.Ctx) error {
+		wsID, err := uuid.Parse(c.Params("wsId"))
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_WORKSPACE_ID", "Workspace ID is invalid", nil)
+		}
+		var req metering.UsageRecordReq
+		if err := c.BodyParser(&req); err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Invalid JSON payload", nil)
+		}
+		updated, err := meterService.RecordUsage(c.Context(), wsID, req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "RECORD_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Usage event recorded successfully", updated)
+	})
+
+	wsGroup.Post("/:wsId/metering/tier", func(c *fiber.Ctx) error {
+		wsID, err := uuid.Parse(c.Params("wsId"))
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_WORKSPACE_ID", "Workspace ID is invalid", nil)
+		}
+		type TierReq struct {
+			Tier string `json:"tier"`
+		}
+		var req TierReq
+		if err := c.BodyParser(&req); err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Invalid JSON payload", nil)
+		}
+		updated := meterService.SetWorkspaceTier(c.Context(), wsID, metering.Tier(req.Tier))
+		return response.Success(c, fiber.StatusOK, "Workspace subscription tier updated", updated)
+	})
 
 	// Prompt Templates & Studio Endpoints
 	wsGroup.Post("/:wsId/prompts", promptHandler.CreatePrompt)
