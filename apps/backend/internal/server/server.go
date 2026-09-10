@@ -31,6 +31,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/ai"
 	"github.com/lopor-ai/lopor/pkg/codestudio"
 	"github.com/lopor-ai/lopor/pkg/collaboration"
+	"github.com/lopor-ai/lopor/pkg/diffsynth"
 	"github.com/lopor-ai/lopor/pkg/email"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
 	"github.com/lopor-ai/lopor/pkg/metering"
@@ -363,6 +364,22 @@ func NewServer(cfg Config) *fiber.App {
 		c.Set("Content-Type", "application/zip")
 		c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", req.ArchiveName))
 		return c.Send(zipBytes)
+	})
+
+	// Intelligent Code Refactoring & Patch Diff Synthesizer Endpoints
+	diffSynthesizer := diffsynth.NewSynthesizer()
+	wsGroup.Post("/:wsId/code/diff-synthesize", func(c *fiber.Ctx) error {
+		var req diffsynth.DiffRequest
+		if err := c.BodyParser(&req); err != nil || req.OriginalCode == "" || req.ModifiedCode == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Original and modified code snippets are required", nil)
+		}
+
+		res, err := diffSynthesizer.SynthesizeDiff(req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "DIFF_SYNTH_FAILED", err.Error(), nil)
+		}
+
+		return response.Success(c, fiber.StatusOK, "Unified git diff synthesized successfully", res)
 	})
 
 	// AI Automated Unit Test Generator Endpoints
