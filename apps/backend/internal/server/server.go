@@ -39,6 +39,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/response"
 	"github.com/lopor-ai/lopor/pkg/sandbox"
 	"github.com/lopor-ai/lopor/pkg/search"
+	"github.com/lopor-ai/lopor/pkg/secscan"
 	"github.com/lopor-ai/lopor/pkg/testgen"
 	"github.com/lopor-ai/lopor/pkg/voice"
 	"github.com/lopor-ai/lopor/pkg/zipengine"
@@ -380,6 +381,22 @@ func NewServer(cfg Config) *fiber.App {
 		}
 
 		return response.Success(c, fiber.StatusOK, "Unified git diff synthesized successfully", res)
+	})
+
+	// Intelligent Code Security Scanner & Secret Leak Detector Endpoints
+	codeScanner := secscan.NewScanner()
+	wsGroup.Post("/:wsId/code/security-scan", func(c *fiber.Ctx) error {
+		var req secscan.ScanRequest
+		if err := c.BodyParser(&req); err != nil || req.Content == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "File content is required for scanning", nil)
+		}
+
+		res, err := codeScanner.ScanCode(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "SCAN_FAILED", err.Error(), nil)
+		}
+
+		return response.Success(c, fiber.StatusOK, "Code security scan completed", res)
 	})
 
 	// AI Automated Unit Test Generator Endpoints
