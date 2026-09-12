@@ -32,6 +32,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/codestudio"
 	"github.com/lopor-ai/lopor/pkg/collaboration"
 	"github.com/lopor-ai/lopor/pkg/diffsynth"
+	"github.com/lopor-ai/lopor/pkg/docgen"
 	"github.com/lopor-ai/lopor/pkg/email"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
 	"github.com/lopor-ai/lopor/pkg/metering"
@@ -413,6 +414,22 @@ func NewServer(cfg Config) *fiber.App {
 		}
 
 		return response.Success(c, fiber.StatusOK, "Automated unit test suite generated successfully", res)
+	})
+
+	// Intelligent Markdown Documentation & API Reference Generator Endpoints
+	docGenerator := docgen.NewGenerator()
+	wsGroup.Post("/:wsId/code/doc-gen", func(c *fiber.Ctx) error {
+		var req docgen.DocRequest
+		if err := c.BodyParser(&req); err != nil || req.SourceCode == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Source code is required for documentation generation", nil)
+		}
+
+		res, err := docGenerator.GenerateDocs(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "DOC_GEN_FAILED", err.Error(), nil)
+		}
+
+		return response.Success(c, fiber.StatusOK, "Technical documentation generated successfully", res)
 	})
 
 	// Documents & Folders Endpoints
