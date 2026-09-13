@@ -43,6 +43,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/secscan"
 	"github.com/lopor-ai/lopor/pkg/testgen"
 	"github.com/lopor-ai/lopor/pkg/voice"
+	"github.com/lopor-ai/lopor/pkg/webhook"
 	"github.com/lopor-ai/lopor/pkg/zipengine"
 )
 
@@ -277,6 +278,60 @@ func NewServer(cfg Config) *fiber.App {
 		}
 		updated := meterService.SetWorkspaceTier(c.Context(), wsID, metering.Tier(req.Tier))
 		return response.Success(c, fiber.StatusOK, "Workspace subscription tier updated", updated)
+	})
+
+	// Webhook Event Notifications & Dispatcher Endpoints
+	webhookDispatcher := webhook.NewDispatcher()
+	wsGroup.Post("/:wsId/webhooks", func(c *fiber.Ctx) error {
+		wsID, err := uuid.Parse(c.Params("wsId"))
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_WORKSPACE_ID", "Workspace ID is invalid", nil)
+		}
+		type CreateWebhookReq struct {
+			TargetURL string              `json:"target_url"`
+			Events    []webhook.EventType `json:"events"`
+		}
+		var req CreateWebhookReq
+		if err := c.BodyParser(&req); err != nil || req.TargetURL == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Target URL is required", nil)
+		}
+		sub, err := webhookDispatcher.RegisterWebhook(wsID, req.TargetURL, req.Events)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "WEBHOOK_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Webhook subscription registered", sub)
+	})
+
+	wsGroup.Get("/:wsId/webhooks", func(c *fiber.Ctx) error {
+		wsID, err := uuid.Parse(c.Params("wsId"))
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_WORKSPACE_ID", "Workspace ID is invalid", nil)
+		}
+		subs := webhookDispatcher.GetWorkspaceWebhooks(wsID)
+		return response.Success(c, fiber.StatusOK, "Workspace webhook subscriptions retrieved", subs)
+	})
+
+	wsGroup.Post("/:wsId/webhooks/:webhookId/test", func(c *fiber.Ctx) error {
+		webhookID, err := uuid.Parse(c.Params("webhookId"))
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_WEBHOOK_ID", "Webhook ID is invalid", nil)
+		}
+		res, err := webhookDispatcher.DispatchTestEvent(c.Context(), webhookID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "DISPATCH_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Test webhook event delivered successfully", res)
+	})
+
+	wsGroup.Delete("/:wsId/webhooks/:webhookId", func(c *fiber.Ctx) error {
+		webhookID, err := uuid.Parse(c.Params("webhookId"))
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_WEBHOOK_ID", "Webhook ID is invalid", nil)
+		}
+		if err := webhookDispatcher.DeleteWebhook(webhookID); err != nil {
+			return response.Error(c, fiber.StatusNotFound, "DELETE_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Webhook subscription deleted successfully", nil)
 	})
 
 	// Prompt Templates & Studio Endpoints
