@@ -37,6 +37,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
 	"github.com/lopor-ai/lopor/pkg/metering"
 	"github.com/lopor-ai/lopor/pkg/observability"
+	"github.com/lopor-ai/lopor/pkg/prompteval"
 	"github.com/lopor-ai/lopor/pkg/response"
 	"github.com/lopor-ai/lopor/pkg/sandbox"
 	"github.com/lopor-ai/lopor/pkg/search"
@@ -335,9 +336,21 @@ func NewServer(cfg Config) *fiber.App {
 	})
 
 	// Prompt Templates & Studio Endpoints
+	promptEvaluator := prompteval.NewEvaluator()
 	wsGroup.Post("/:wsId/prompts", promptHandler.CreatePrompt)
 	wsGroup.Get("/:wsId/prompts", promptHandler.GetWorkspacePrompts)
 	wsGroup.Post("/:wsId/prompts/:promptId/execute", promptHandler.SubstituteVariables)
+	wsGroup.Post("/:wsId/prompts/:promptId/benchmark", func(c *fiber.Ctx) error {
+		var req prompteval.EvalRequest
+		if err := c.BodyParser(&req); err != nil || req.PromptTemplate == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Prompt template is required for benchmark evaluation", nil)
+		}
+		result, err := promptEvaluator.EvaluatePrompt(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "BENCHMARK_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Prompt benchmark evaluation completed", result)
+	})
 	wsGroup.Delete("/:wsId/prompts/:promptId", promptHandler.DeletePrompt)
 
 	// AI Personas & System Prompt Management Endpoints
