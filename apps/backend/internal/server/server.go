@@ -32,6 +32,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/codestudio"
 	"github.com/lopor-ai/lopor/pkg/collaboration"
 	"github.com/lopor-ai/lopor/pkg/diffsynth"
+	"github.com/lopor-ai/lopor/pkg/docexport"
 	"github.com/lopor-ai/lopor/pkg/docgen"
 	"github.com/lopor-ai/lopor/pkg/email"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
@@ -501,10 +502,24 @@ func NewServer(cfg Config) *fiber.App {
 	})
 
 	// Documents & Folders Endpoints
+	docConverter := docexport.NewDocumentConverter()
 	wsGroup.Post("/:wsId/documents", docHandler.CreateDocument)
 	wsGroup.Get("/:wsId/documents", docHandler.GetWorkspaceDocuments)
 	wsGroup.Get("/:wsId/documents/:docId", docHandler.GetDocumentByID)
 	wsGroup.Post("/:wsId/documents/:id/summarize", docHandler.SummarizeDocument)
+	wsGroup.Post("/:wsId/documents/:docId/export", func(c *fiber.Ctx) error {
+		var req docexport.ExportRequest
+		if err := c.BodyParser(&req); err != nil || req.Content == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Document content is required for export", nil)
+		}
+		res, err := docConverter.ConvertDocument(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "EXPORT_FAILED", err.Error(), nil)
+		}
+		c.Set("Content-Type", res.ContentType)
+		c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", res.FileName))
+		return c.Send(res.Data)
+	})
 	wsGroup.Patch("/:wsId/documents/:docId", docHandler.UpdateDocument)
 	wsGroup.Post("/:wsId/folders", docHandler.CreateFolder)
 	wsGroup.Get("/:wsId/folders", docHandler.GetWorkspaceFolders)
