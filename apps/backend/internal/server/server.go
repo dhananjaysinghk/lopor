@@ -31,6 +31,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/ai"
 	"github.com/lopor-ai/lopor/pkg/codestudio"
 	"github.com/lopor-ai/lopor/pkg/collaboration"
+	"github.com/lopor-ai/lopor/pkg/contextopt"
 	"github.com/lopor-ai/lopor/pkg/diffsynth"
 	"github.com/lopor-ai/lopor/pkg/docexport"
 	"github.com/lopor-ai/lopor/pkg/docgen"
@@ -367,6 +368,20 @@ func NewServer(cfg Config) *fiber.App {
 	wsGroup.Get("/:wsId/chats", chatHandler.GetWorkspaceChats)
 	wsGroup.Get("/:wsId/chats/:chatId", chatHandler.GetChatDetails)
 	wsGroup.Post("/:wsId/chats/:chatId/stream", chatHandler.StreamChatResponse)
+
+	// Context Compression & Token Optimization Endpoints
+	contextCompressor := contextopt.NewContextCompressor()
+	wsGroup.Post("/:wsId/ai/compress-context", func(c *fiber.Ctx) error {
+		var req contextopt.CompressionRequest
+		if err := c.BodyParser(&req); err != nil || req.Text == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Text content is required for compression", nil)
+		}
+		result, err := contextCompressor.CompressContext(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "COMPRESSION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Context compressed and token-optimized successfully", result)
+	})
 
 	// RAG Vector & File Ingestion Endpoints
 	wsGroup.Post("/:wsId/search/semantic", ragHandler.SemanticSearch)
