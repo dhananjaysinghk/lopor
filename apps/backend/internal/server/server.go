@@ -35,6 +35,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/diffsynth"
 	"github.com/lopor-ai/lopor/pkg/docexport"
 	"github.com/lopor-ai/lopor/pkg/docgen"
+	"github.com/lopor-ai/lopor/pkg/docvision"
 	"github.com/lopor-ai/lopor/pkg/email"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
 	"github.com/lopor-ai/lopor/pkg/metering"
@@ -572,6 +573,36 @@ func NewServer(cfg Config) *fiber.App {
 		}
 
 		return response.Success(c, fiber.StatusOK, "Audio transcribed successfully", result)
+	})
+
+	// Multi-Modal OCR & Document Vision Extraction Endpoints
+	visionExtractor := docvision.NewVisionExtractor()
+	wsGroup.Post("/:wsId/vision/extract", func(c *fiber.Ctx) error {
+		var req docvision.VisionRequest
+		fileHeader, err := c.FormFile("image")
+		if err == nil {
+			file, err := fileHeader.Open()
+			if err == nil {
+				defer file.Close()
+				buf := make([]byte, fileHeader.Size)
+				_, _ = file.Read(buf)
+				result, err := visionExtractor.ExtractFromBytes(c.Context(), buf, fileHeader.Filename, fileHeader.Header.Get("Content-Type"), "")
+				if err == nil {
+					return response.Success(c, fiber.StatusOK, "Document vision extraction completed", result)
+				}
+			}
+		}
+
+		if err := c.BodyParser(&req); err != nil || (req.ImageBase64 == "" && req.FileName == "") {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Image upload or image_base64 is required", nil)
+		}
+
+		res, err := visionExtractor.ExtractFromImage(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "VISION_FAILED", err.Error(), nil)
+		}
+
+		return response.Success(c, fiber.StatusOK, "Document vision extraction completed", res)
 	})
 
 	log.Println("Routes successfully registered in Fiber Core Engine")
