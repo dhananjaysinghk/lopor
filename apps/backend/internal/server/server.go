@@ -45,6 +45,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/sandbox"
 	"github.com/lopor-ai/lopor/pkg/search"
 	"github.com/lopor-ai/lopor/pkg/secscan"
+	"github.com/lopor-ai/lopor/pkg/taskplanner"
 	"github.com/lopor-ai/lopor/pkg/testgen"
 	"github.com/lopor-ai/lopor/pkg/voice"
 	"github.com/lopor-ai/lopor/pkg/webhook"
@@ -541,9 +542,36 @@ func NewServer(cfg Config) *fiber.App {
 	wsGroup.Get("/:wsId/folders", docHandler.GetWorkspaceFolders)
 
 	// Autonomous AI Agents Endpoints
+	taskPlanner := taskplanner.NewTaskPlanner()
 	wsGroup.Post("/:wsId/agents", agentHandler.CreateAgent)
 	wsGroup.Get("/:wsId/agents", agentHandler.GetWorkspaceAgents)
 	wsGroup.Post("/:wsId/agents/:agentId/execute", agentHandler.ExecuteAgent)
+	wsGroup.Post("/:wsId/agents/plan-dag", func(c *fiber.Ctx) error {
+		type PlanReq struct {
+			Goal  string                 `json:"goal"`
+			Nodes []taskplanner.TaskNode `json:"nodes"`
+		}
+		var req PlanReq
+		if err := c.BodyParser(&req); err != nil || len(req.Nodes) == 0 {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Nodes list cannot be empty", nil)
+		}
+		plan, err := taskPlanner.PlanDAG(req.Goal, req.Nodes)
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "DAG_PLAN_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Autonomous task DAG plan created successfully", plan)
+	})
+	wsGroup.Post("/:wsId/agents/execute-dag", func(c *fiber.Ctx) error {
+		var plan taskplanner.DAGPlan
+		if err := c.BodyParser(&plan); err != nil || len(plan.Nodes) == 0 {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Valid DAG plan is required for execution", nil)
+		}
+		res, err := taskPlanner.ExecuteDAG(c.Context(), &plan)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "DAG_EXEC_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Task DAG executed successfully", res)
+	})
 	wsGroup.Delete("/:wsId/agents/:agentId", agentHandler.DeleteAgent)
 
 	// Real-Time WebSockets Collaborative Editing Route
