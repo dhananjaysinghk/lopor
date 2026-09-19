@@ -29,6 +29,7 @@ import (
 	"github.com/lopor-ai/lopor/internal/domain/workspace"
 	"github.com/lopor-ai/lopor/internal/middleware"
 	"github.com/lopor-ai/lopor/pkg/ai"
+	"github.com/lopor-ai/lopor/pkg/codereview"
 	"github.com/lopor-ai/lopor/pkg/codestudio"
 	"github.com/lopor-ai/lopor/pkg/collaboration"
 	"github.com/lopor-ai/lopor/pkg/contextopt"
@@ -484,6 +485,20 @@ func NewServer(cfg Config) *fiber.App {
 		}
 
 		return response.Success(c, fiber.StatusOK, "Code security scan completed", res)
+	})
+
+	// AI Code Reviewer & Automated Pull Request Critique Endpoints
+	codeReviewer := codereview.NewCodeReviewer()
+	wsGroup.Post("/:wsId/code/review", func(c *fiber.Ctx) error {
+		var req codereview.ReviewRequest
+		if err := c.BodyParser(&req); err != nil || req.CodeContent == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Code content is required for review", nil)
+		}
+		res, err := codeReviewer.ReviewCode(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "REVIEW_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Code review analysis completed", res)
 	})
 
 	// AI Automated Unit Test Generator Endpoints
