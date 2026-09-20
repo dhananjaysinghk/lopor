@@ -46,6 +46,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/sandbox"
 	"github.com/lopor-ai/lopor/pkg/search"
 	"github.com/lopor-ai/lopor/pkg/secscan"
+	"github.com/lopor-ai/lopor/pkg/sqlsynth"
 	"github.com/lopor-ai/lopor/pkg/taskplanner"
 	"github.com/lopor-ai/lopor/pkg/testgen"
 	"github.com/lopor-ai/lopor/pkg/voice"
@@ -531,6 +532,20 @@ func NewServer(cfg Config) *fiber.App {
 		}
 
 		return response.Success(c, fiber.StatusOK, "Technical documentation generated successfully", res)
+	})
+
+	// Intelligent SQL Query Generator & Schema Introspection Endpoints
+	sqlSynthesizer := sqlsynth.NewSQLSynthesizer()
+	wsGroup.Post("/:wsId/sql/generate", func(c *fiber.Ctx) error {
+		var req sqlsynth.SQLGenerateRequest
+		if err := c.BodyParser(&req); err != nil || req.NaturalQuery == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Natural language query is required", nil)
+		}
+		res, err := sqlSynthesizer.GenerateSQL(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "SQL_GEN_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "SQL query synthesized successfully", res)
 	})
 
 	// Documents & Folders Endpoints
