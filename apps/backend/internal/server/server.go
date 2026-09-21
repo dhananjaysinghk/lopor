@@ -29,6 +29,7 @@ import (
 	"github.com/lopor-ai/lopor/internal/domain/workspace"
 	"github.com/lopor-ai/lopor/internal/middleware"
 	"github.com/lopor-ai/lopor/pkg/ai"
+	"github.com/lopor-ai/lopor/pkg/anonymizer"
 	"github.com/lopor-ai/lopor/pkg/codereview"
 	"github.com/lopor-ai/lopor/pkg/codestudio"
 	"github.com/lopor-ai/lopor/pkg/collaboration"
@@ -486,6 +487,20 @@ func NewServer(cfg Config) *fiber.App {
 		}
 
 		return response.Success(c, fiber.StatusOK, "Code security scan completed", res)
+	})
+
+	// Enterprise Data Anonymization & PII Redaction Endpoints
+	piiAnonymizer := anonymizer.NewPIIAnonymizer()
+	wsGroup.Post("/:wsId/security/anonymize", func(c *fiber.Ctx) error {
+		var req anonymizer.AnonymizeRequest
+		if err := c.BodyParser(&req); err != nil || req.Text == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Text content is required for anonymization", nil)
+		}
+		res, err := piiAnonymizer.AnonymizeText(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "ANONYMIZE_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Data anonymized and PII redacted successfully", res)
 	})
 
 	// AI Code Reviewer & Automated Pull Request Critique Endpoints
