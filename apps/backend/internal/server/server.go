@@ -28,6 +28,7 @@ import (
 	"github.com/lopor-ai/lopor/internal/domain/rag"
 	"github.com/lopor-ai/lopor/internal/domain/workspace"
 	"github.com/lopor-ai/lopor/internal/middleware"
+	"github.com/lopor-ai/lopor/pkg/agenteval"
 	"github.com/lopor-ai/lopor/pkg/ai"
 	"github.com/lopor-ai/lopor/pkg/anonymizer"
 	"github.com/lopor-ai/lopor/pkg/codereview"
@@ -616,6 +617,20 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusInternalServerError, "DAG_EXEC_FAILED", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Task DAG executed successfully", res)
+	})
+
+	// AI Agent Security Guardrail Verification Endpoints
+	guardrailEngine := agenteval.NewGuardrailEngine()
+	wsGroup.Post("/:wsId/agents/verify-guardrails", func(c *fiber.Ctx) error {
+		var req agenteval.GuardrailRequest
+		if err := c.BodyParser(&req); err != nil || (req.PromptText == "" && req.ToolArguments == "") {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Prompt text or tool arguments are required", nil)
+		}
+		res, err := guardrailEngine.VerifyGuardrails(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "GUARDRAIL_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Guardrail verification completed", res)
 	})
 	wsGroup.Delete("/:wsId/agents/:agentId", agentHandler.DeleteAgent)
 
