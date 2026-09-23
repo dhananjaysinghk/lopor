@@ -40,6 +40,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/docgen"
 	"github.com/lopor-ai/lopor/pkg/docvision"
 	"github.com/lopor-ai/lopor/pkg/email"
+	"github.com/lopor-ai/lopor/pkg/gitops"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
 	"github.com/lopor-ai/lopor/pkg/metering"
 	"github.com/lopor-ai/lopor/pkg/observability"
@@ -562,6 +563,49 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusInternalServerError, "SQL_GEN_FAILED", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "SQL query synthesized successfully", res)
+	})
+
+	// Intelligent Git Operations & Version Control Endpoints
+	gitOpsEngine := gitops.NewGitOpsEngine()
+	wsGroup.Post("/:wsId/git/commit", func(c *fiber.Ctx) error {
+		wsID, err := uuid.Parse(c.Params("wsId"))
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_WORKSPACE_ID", "Workspace ID is invalid", nil)
+		}
+		var req gitops.CommitRequest
+		if err := c.BodyParser(&req); err != nil || len(req.ChangedFiles) == 0 {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Changed files list is required", nil)
+		}
+		commit, err := gitOpsEngine.Commit(c.Context(), wsID, req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "COMMIT_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Git commit created successfully", commit)
+	})
+
+	wsGroup.Get("/:wsId/git/branches", func(c *fiber.Ctx) error {
+		wsID, err := uuid.Parse(c.Params("wsId"))
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_WORKSPACE_ID", "Workspace ID is invalid", nil)
+		}
+		branches := gitOpsEngine.GetBranches(wsID)
+		return response.Success(c, fiber.StatusOK, "Workspace branches retrieved", branches)
+	})
+
+	wsGroup.Post("/:wsId/git/merge-check", func(c *fiber.Ctx) error {
+		wsID, err := uuid.Parse(c.Params("wsId"))
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_WORKSPACE_ID", "Workspace ID is invalid", nil)
+		}
+		var req gitops.MergeCheckRequest
+		if err := c.BodyParser(&req); err != nil || req.SourceBranch == "" || req.TargetBranch == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Source and target branch names are required", nil)
+		}
+		res, err := gitOpsEngine.CheckMerge(c.Context(), wsID, req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "MERGE_CHECK_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Git merge check completed", res)
 	})
 
 	// Documents & Folders Endpoints
