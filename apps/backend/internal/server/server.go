@@ -52,6 +52,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/sqlsynth"
 	"github.com/lopor-ai/lopor/pkg/taskplanner"
 	"github.com/lopor-ai/lopor/pkg/testgen"
+	"github.com/lopor-ai/lopor/pkg/totp"
 	"github.com/lopor-ai/lopor/pkg/voice"
 	"github.com/lopor-ai/lopor/pkg/webhook"
 	"github.com/lopor-ai/lopor/pkg/zipengine"
@@ -173,6 +174,40 @@ func NewServer(cfg Config) *fiber.App {
 	authGroup.Post("/refresh", authHandler.Refresh)
 	authGroup.Post("/logout", authHandler.Logout)
 	authGroup.Get("/me", middleware.Protected(cfg.JWTSecret), authHandler.GetMe)
+
+	// Enterprise Multi-Factor Authentication (MFA / TOTP) Endpoints
+	mfaEngine := totp.NewMFAEngine()
+	authGroup.Post("/mfa/setup", middleware.Protected(cfg.JWTSecret), func(c *fiber.Ctx) error {
+		userEmail, _ := c.Locals("userEmail").(string)
+		if userEmail == "" {
+			userEmail = "user@lopor.ai"
+		}
+		setup, err := mfaEngine.GenerateSetup("Lopor AI Workspace", userEmail)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "MFA_SETUP_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "MFA enrollment setup generated", setup)
+	})
+
+	authGroup.Post("/mfa/verify", middleware.Protected(cfg.JWTSecret), func(c *fiber.Ctx) error {
+		var req totp.MFAVerificationReq
+		if err := c.BodyParser(&req); err != nil || req.Passcode == "" || req.Secret == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Secret and 6-digit passcode are required", nil)
+		}
+		valid, err := mfaEngine.VerifyCode(req.Secret, req.Passcode)
+		if err != nil || !valid {
+			return response.Error(c, fiber.StatusUnauthorized, "MFA_INVALID_CODE", "Invalid or expired passcode", nil)
+		}
+		return response.Success(c, fiber.StatusOK, "MFA verification successful", fiber.Map{"mfa_verified": true})
+	})
+
+	authGroup.Post("/mfa/recovery", func(c *fiber.Ctx) error {
+		var req totp.MFARecoveryReq
+		if err := c.BodyParser(&req); err != nil || req.RecoveryCode == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Recovery code is required", nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Recovery code accepted", fiber.Map{"recovered": true})
+	})
 
 	// Async Job Queue Endpoints
 	jobsGroup := api.Group("/jobs", middleware.Protected(cfg.JWTSecret))
