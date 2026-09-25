@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Lopor AI Workspace API
-  description: Enterprise AI productivity platform API for documents, pgvector RAG, autonomous agents, and real-time collaboration.
+  description: Commercial-grade enterprise AI productivity platform API for documents, pgvector RAG, autonomous multi-step agents, code intelligence, and real-time collaboration.
   version: 1.0.0
 servers:
   - url: http://localhost:8080/api/v1
@@ -26,6 +26,7 @@ paths:
       responses:
         '201':
           description: User Registered Successfully
+
   /auth/login:
     post:
       summary: User Login
@@ -43,6 +44,231 @@ paths:
       responses:
         '200':
           description: Tokens Dispatched
+
+  /auth/mfa/setup:
+    post:
+      summary: Initialize TOTP MFA Enrollment
+      responses:
+        '200':
+          description: Base32 secret, QR code URI, and recovery codes returned
+
+  /auth/mfa/verify:
+    post:
+      summary: Verify 6-digit TOTP Passcode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                secret:
+                  type: string
+                passcode:
+                  type: string
+      responses:
+        '200':
+          description: MFA Verification Successful
+
+  /admin/metrics/summary:
+    get:
+      summary: Real-Time System Health & Telemetry Metrics
+      responses:
+        '200':
+          description: Telemetry counters, memory stats, and connection metrics
+
+  /admin/health/deep-check:
+    get:
+      summary: Deep Health Check for Postgres, Redis, and AI Gateways
+      responses:
+        '200':
+          description: Multi-component operational status
+
+  /workspaces/{wsId}/metering/usage:
+    get:
+      summary: Workspace Consumption Metering & Quota Tracking
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current token and storage usage stats
+
+  /workspaces/{wsId}/security/anonymize:
+    post:
+      summary: Enterprise Data Anonymization & PII Redaction
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                enable_mapping:
+                  type: boolean
+      responses:
+        '200':
+          description: Redacted content and token mapping returned
+
+  /workspaces/{wsId}/agents/verify-guardrails:
+    post:
+      summary: AI Agent Security Guardrail & Injection Verification
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prompt_text:
+                  type: string
+                proposed_tool:
+                  type: string
+                tool_arguments:
+                  type: string
+      responses:
+        '200':
+          description: Guardrail compliance score and verdict returned
+
+  /workspaces/{wsId}/agents/plan-dag:
+    post:
+      summary: Autonomous Task DAG Generation & Cycle Verification
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Topologically sorted multi-stage execution plan
+
+  /workspaces/{wsId}/git/commit:
+    post:
+      summary: Programmatic Git Commit & Conventional Commit Synthesis
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Commit created with hash and conventional message
+
+  /workspaces/{wsId}/sql/generate:
+    post:
+      summary: Natural Language Text-to-SQL Query Generator
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Safe SQL query with complexity score and explanation
+
+  /workspaces/{wsId}/code/review:
+    post:
+      summary: AI Code Reviewer & PR Critique Analysis
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Code health score, inline suggestions, and review verdict
+
+  /workspaces/{wsId}/code/doc-gen:
+    post:
+      summary: Markdown Documentation & Mermaid Diagram Generator
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Technical documentation synthesized
+
+  /workspaces/{wsId}/vision/extract:
+    post:
+      summary: Multi-Modal OCR & Document Vision Extraction
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OCR transcript and structured entity metadata
+
+  /workspaces/{wsId}/ai/compress-context:
+    post:
+      summary: Context Compression & Token Optimization
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Compressed text and token savings metrics
+
+  /workspaces/{wsId}/documents/{docId}/export:
+    post:
+      summary: Export Document to PDF, HTML, or Markdown
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: docId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Streamed document attachment with custom headers
+
+  /workspaces/{wsId}/webhooks:
+    post:
+      summary: Register Workspace Webhook Subscription
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Webhook registered with HMAC shared secret
+
   /workspaces/{wsId}/search/hybrid:
     post:
       summary: Reciprocal Rank Fusion (RRF) Hybrid Search
@@ -66,29 +292,3 @@ paths:
       responses:
         '200':
           description: RRF Fused Results Returned
-  /workspaces/{wsId}/agents/{agentId}/execute:
-    post:
-      summary: Execute Autonomous AI Agent Tool Workflow
-      parameters:
-        - name: wsId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: agentId
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                input_prompt:
-                  type: string
-      responses:
-        '200':
-          description: Execution Terminal Stream Completed
