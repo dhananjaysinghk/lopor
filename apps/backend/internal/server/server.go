@@ -35,6 +35,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/codestudio"
 	"github.com/lopor-ai/lopor/pkg/collaboration"
 	"github.com/lopor-ai/lopor/pkg/contextopt"
+	"github.com/lopor-ai/lopor/pkg/costcalc"
 	"github.com/lopor-ai/lopor/pkg/diffsynth"
 	"github.com/lopor-ai/lopor/pkg/docexport"
 	"github.com/lopor-ai/lopor/pkg/docgen"
@@ -227,6 +228,12 @@ func NewServer(cfg Config) *fiber.App {
 	api.Get("/ai/models", func(c *fiber.Ctx) error {
 		models := aiRouter.GetAvailableModels()
 		return response.Success(c, fiber.StatusOK, "Available AI models retrieved", models)
+	})
+
+	// AI Streaming Cost & Token Consumption Estimator
+	costEstimator := costcalc.NewCostEstimator()
+	api.Get("/ai/pricing-catalog", func(c *fiber.Ctx) error {
+		return response.Success(c, fiber.StatusOK, "AI model pricing catalog retrieved", costEstimator.GetCatalog())
 	})
 
 	// Multi-Language Code Execution Sandbox Endpoints
@@ -423,6 +430,18 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusInternalServerError, "COMPRESSION_FAILED", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Context compressed and token-optimized successfully", result)
+	})
+
+	wsGroup.Post("/:wsId/ai/estimate-cost", func(c *fiber.Ctx) error {
+		var req costcalc.CostEstimateRequest
+		if err := c.BodyParser(&req); err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Invalid cost estimation request payload", nil)
+		}
+		result, err := costEstimator.EstimateCost(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "ESTIMATION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Token and stream cost estimated successfully", result)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
