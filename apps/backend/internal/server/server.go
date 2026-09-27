@@ -34,6 +34,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/codereview"
 	"github.com/lopor-ai/lopor/pkg/codestudio"
 	"github.com/lopor-ai/lopor/pkg/collaboration"
+	"github.com/lopor-ai/lopor/pkg/consensus"
 	"github.com/lopor-ai/lopor/pkg/contextopt"
 	"github.com/lopor-ai/lopor/pkg/costcalc"
 	"github.com/lopor-ai/lopor/pkg/diffsynth"
@@ -731,6 +732,23 @@ func NewServer(cfg Config) *fiber.App {
 		return response.Success(c, fiber.StatusOK, "Guardrail verification completed", res)
 	})
 	wsGroup.Delete("/:wsId/agents/:agentId", agentHandler.DeleteAgent)
+
+	// Multi-Agent Consensus & Debate Engine Endpoints
+	consensusEngine := consensus.NewConsensusEngine()
+	api.Get("/agents/consensus/specialists", func(c *fiber.Ctx) error {
+		return response.Success(c, fiber.StatusOK, "Specialist agent debaters retrieved", consensusEngine.GetAvailableSpecialists())
+	})
+	wsGroup.Post("/:wsId/agents/consensus/debate", func(c *fiber.Ctx) error {
+		var req consensus.ConsensusRequest
+		if err := c.BodyParser(&req); err != nil || req.Topic == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Topic is required for consensus debate", nil)
+		}
+		verdict, err := consensusEngine.RunDebate(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "DEBATE_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Multi-agent consensus debate completed", verdict)
+	})
 
 	// Real-Time WebSockets Collaborative Editing Route
 	app.Use("/ws", collaboration.WebSocketUpgradeMiddleware())
