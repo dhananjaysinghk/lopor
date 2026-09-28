@@ -55,6 +55,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/taskplanner"
 	"github.com/lopor-ai/lopor/pkg/testgen"
 	"github.com/lopor-ai/lopor/pkg/totp"
+	"github.com/lopor-ai/lopor/pkg/tts"
 	"github.com/lopor-ai/lopor/pkg/voice"
 	"github.com/lopor-ai/lopor/pkg/webhook"
 	"github.com/lopor-ai/lopor/pkg/zipengine"
@@ -777,6 +778,34 @@ func NewServer(cfg Config) *fiber.App {
 		}
 
 		return response.Success(c, fiber.StatusOK, "Audio transcribed successfully", result)
+	})
+
+	// Neural Text-to-Speech (TTS) & Audio Narration Endpoints
+	ttsEngine := tts.NewTTSEngine()
+	api.Get("/voice/tts/voices", func(c *fiber.Ctx) error {
+		return response.Success(c, fiber.StatusOK, "Available neural TTS voices retrieved", ttsEngine.GetAvailableVoices())
+	})
+	wsGroup.Post("/:wsId/voice/tts/synthesize", func(c *fiber.Ctx) error {
+		var req tts.SynthesisRequest
+		if err := c.BodyParser(&req); err != nil || req.Text == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Text content is required for speech synthesis", nil)
+		}
+		result, err := ttsEngine.SynthesizeSpeech(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "TTS_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Speech synthesized successfully", result)
+	})
+	wsGroup.Post("/:wsId/voice/tts/document-brief", func(c *fiber.Ctx) error {
+		var req tts.AudioBriefRequest
+		if err := c.BodyParser(&req); err != nil || req.Content == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Document content is required for audio brief", nil)
+		}
+		result, err := ttsEngine.GenerateAudioBrief(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "AUDIO_BRIEF_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Document audio brief generated successfully", result)
 	})
 
 	// Multi-Modal OCR & Document Vision Extraction Endpoints
