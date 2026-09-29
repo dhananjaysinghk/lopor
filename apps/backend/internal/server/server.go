@@ -37,6 +37,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/consensus"
 	"github.com/lopor-ai/lopor/pkg/contextopt"
 	"github.com/lopor-ai/lopor/pkg/costcalc"
+	"github.com/lopor-ai/lopor/pkg/dedup"
 	"github.com/lopor-ai/lopor/pkg/diffsynth"
 	"github.com/lopor-ai/lopor/pkg/docexport"
 	"github.com/lopor-ai/lopor/pkg/docgen"
@@ -686,6 +687,20 @@ func NewServer(cfg Config) *fiber.App {
 	wsGroup.Patch("/:wsId/documents/:docId", docHandler.UpdateDocument)
 	wsGroup.Post("/:wsId/folders", docHandler.CreateFolder)
 	wsGroup.Get("/:wsId/folders", docHandler.GetWorkspaceFolders)
+
+	// Semantic Document Deduplication & Clustering Endpoints
+	dedupEngine := dedup.NewDedupEngine()
+	wsGroup.Post("/:wsId/documents/dedup/analyze", func(c *fiber.Ctx) error {
+		var req dedup.DedupAnalysisRequest
+		if err := c.BodyParser(&req); err != nil || len(req.Documents) == 0 {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Documents list is required for deduplication analysis", nil)
+		}
+		report, err := dedupEngine.AnalyzeDuplicates(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "DEDUP_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Document deduplication analysis completed", report)
+	})
 
 	// Autonomous AI Agents Endpoints
 	taskPlanner := taskplanner.NewTaskPlanner()
