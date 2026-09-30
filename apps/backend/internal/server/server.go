@@ -47,6 +47,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
 	"github.com/lopor-ai/lopor/pkg/metering"
 	"github.com/lopor-ai/lopor/pkg/observability"
+	"github.com/lopor-ai/lopor/pkg/orchestrator"
 	"github.com/lopor-ai/lopor/pkg/prompteval"
 	"github.com/lopor-ai/lopor/pkg/response"
 	"github.com/lopor-ai/lopor/pkg/sandbox"
@@ -387,6 +388,44 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusNotFound, "DELETE_FAILED", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Webhook subscription deleted successfully", nil)
+	})
+
+	// Event-Driven Workflow Automation & Action Orchestration Endpoints
+	workflowEngine := orchestrator.NewWorkflowOrchestrator()
+	wsGroup.Post("/:wsId/workflows", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var rule orchestrator.WorkflowRule
+		if err := c.BodyParser(&rule); err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Invalid workflow rule payload", nil)
+		}
+		rule.WorkspaceID = wsID
+		if err := workflowEngine.RegisterRule(rule); err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "VALIDATION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Workflow automation rule registered", rule)
+	})
+	wsGroup.Get("/:wsId/workflows", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		rules := workflowEngine.GetRules(wsID)
+		return response.Success(c, fiber.StatusOK, "Workspace workflow rules retrieved", rules)
+	})
+	wsGroup.Post("/:wsId/workflows/dispatch", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var event orchestrator.EventPayload
+		if err := c.BodyParser(&event); err != nil || event.EventType == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Event type and payload are required", nil)
+		}
+		event.WorkspaceID = wsID
+		logs, err := workflowEngine.DispatchEvent(c.Context(), event)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "DISPATCH_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Event processed through workflow orchestrator", logs)
+	})
+	wsGroup.Get("/:wsId/workflows/logs", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		logs := workflowEngine.GetExecutionLogs(wsID)
+		return response.Success(c, fiber.StatusOK, "Workflow execution logs retrieved", logs)
 	})
 
 	// Prompt Templates & Studio Endpoints
