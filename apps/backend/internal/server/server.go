@@ -57,6 +57,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/taskplanner"
 	"github.com/lopor-ai/lopor/pkg/testgen"
 	"github.com/lopor-ai/lopor/pkg/totp"
+	"github.com/lopor-ai/lopor/pkg/translation"
 	"github.com/lopor-ai/lopor/pkg/tts"
 	"github.com/lopor-ai/lopor/pkg/voice"
 	"github.com/lopor-ai/lopor/pkg/webhook"
@@ -739,6 +740,37 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusInternalServerError, "DEDUP_FAILED", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Document deduplication analysis completed", report)
+	})
+
+	// Multi-Lingual Document Translation & Localization Endpoints
+	translationEngine := translation.NewTranslationEngine()
+	api.Get("/translation/languages", func(c *fiber.Ctx) error {
+		return response.Success(c, fiber.StatusOK, "Supported translation languages retrieved", translationEngine.GetSupportedLanguages())
+	})
+	wsGroup.Post("/:wsId/translation/detect", func(c *fiber.Ctx) error {
+		type DetectReq struct {
+			Text string `json:"text"`
+		}
+		var req DetectReq
+		if err := c.BodyParser(&req); err != nil || req.Text == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Text is required for language detection", nil)
+		}
+		res, err := translationEngine.DetectLanguage(c.Context(), req.Text)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "DETECTION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Language detected successfully", res)
+	})
+	wsGroup.Post("/:wsId/translation/translate", func(c *fiber.Ctx) error {
+		var req translation.TranslationRequest
+		if err := c.BodyParser(&req); err != nil || req.Text == "" || req.TargetLanguage == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Text and target_language are required for translation", nil)
+		}
+		res, err := translationEngine.Translate(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "TRANSLATION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Document translated and localized successfully", res)
 	})
 
 	// Autonomous AI Agents Endpoints
