@@ -49,6 +49,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/observability"
 	"github.com/lopor-ai/lopor/pkg/orchestrator"
 	"github.com/lopor-ai/lopor/pkg/prompteval"
+	"github.com/lopor-ai/lopor/pkg/redteam"
 	"github.com/lopor-ai/lopor/pkg/response"
 	"github.com/lopor-ai/lopor/pkg/sandbox"
 	"github.com/lopor-ai/lopor/pkg/search"
@@ -819,6 +820,23 @@ func NewServer(cfg Config) *fiber.App {
 		return response.Success(c, fiber.StatusOK, "Guardrail verification completed", res)
 	})
 	wsGroup.Delete("/:wsId/agents/:agentId", agentHandler.DeleteAgent)
+
+	// Automated Red-Team Adversarial Security Fuzzing Endpoints
+	redTeamFuzzer := redteam.NewRedTeamFuzzer()
+	api.Get("/security/redteam/attacks", func(c *fiber.Ctx) error {
+		return response.Success(c, fiber.StatusOK, "Adversarial attack catalog retrieved", redTeamFuzzer.GetAttackCatalog())
+	})
+	wsGroup.Post("/:wsId/security/redteam/fuzz", func(c *fiber.Ctx) error {
+		var req redteam.FuzzRequest
+		if err := c.BodyParser(&req); err != nil || req.SystemPrompt == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "System prompt is required for adversarial fuzzing", nil)
+		}
+		report, err := redTeamFuzzer.FuzzPrompt(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "FUZZING_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Automated red-team adversarial fuzzing completed", report)
+	})
 
 	// Multi-Agent Consensus & Debate Engine Endpoints
 	consensusEngine := consensus.NewConsensusEngine()
