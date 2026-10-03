@@ -44,6 +44,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/docvision"
 	"github.com/lopor-ai/lopor/pkg/email"
 	"github.com/lopor-ai/lopor/pkg/gitops"
+	"github.com/lopor-ai/lopor/pkg/indexopt"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
 	"github.com/lopor-ai/lopor/pkg/metering"
 	"github.com/lopor-ai/lopor/pkg/observability"
@@ -495,6 +496,36 @@ func NewServer(cfg Config) *fiber.App {
 	wsGroup.Post("/:wsId/ingest/url", ragHandler.IngestURL)
 	wsGroup.Post("/:wsId/files/upload", ragHandler.UploadFile)
 	wsGroup.Get("/:wsId/files", ragHandler.GetFiles)
+
+	// Vector Index Optimization & HNSW Calibration Endpoints
+	indexOptimizer := indexopt.NewIndexOptimizer()
+	wsGroup.Get("/:wsId/rag/index/health", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		health, err := indexOptimizer.InspectHealth(c.Context(), wsID, 12500)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "INDEX_HEALTH_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Vector index health metrics retrieved", health)
+	})
+	wsGroup.Post("/:wsId/rag/index/calibrate", func(c *fiber.Ctx) error {
+		var req indexopt.CalibrationRequest
+		if err := c.BodyParser(&req); err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Invalid calibration request payload", nil)
+		}
+		params, err := indexOptimizer.CalibrateHNSW(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "CALIBRATION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "HNSW parameters calibrated successfully", params)
+	})
+	wsGroup.Post("/:wsId/rag/index/optimize", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		report, err := indexOptimizer.GenerateOptimizationPlan(c.Context(), wsID, 12500)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "OPTIMIZATION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Vector index optimization plan generated", report)
+	})
 
 	// Live Web Grounding Search Endpoints
 	webGrounder := search.NewWebGrounder()
