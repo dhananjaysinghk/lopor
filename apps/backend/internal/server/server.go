@@ -49,6 +49,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/metering"
 	"github.com/lopor-ai/lopor/pkg/observability"
 	"github.com/lopor-ai/lopor/pkg/orchestrator"
+	"github.com/lopor-ai/lopor/pkg/postmortem"
 	"github.com/lopor-ai/lopor/pkg/prompteval"
 	"github.com/lopor-ai/lopor/pkg/redteam"
 	"github.com/lopor-ai/lopor/pkg/response"
@@ -618,6 +619,41 @@ func NewServer(cfg Config) *fiber.App {
 		}
 
 		return response.Success(c, fiber.StatusOK, "Code security scan completed", res)
+	})
+
+	// Automated Incident Postmortem & Root Cause Analysis (RCA) Endpoints
+	postmortemSynthesizer := postmortem.NewPostmortemSynthesizer()
+	api.Get("/incidents/templates", func(c *fiber.Ctx) error {
+		return response.Success(c, fiber.StatusOK, "Postmortem templates retrieved", postmortemSynthesizer.GetTemplates())
+	})
+	wsGroup.Post("/:wsId/incidents/analyze-rca", func(c *fiber.Ctx) error {
+		type RCARequest struct {
+			LogsSnippet string `json:"logs_snippet"`
+			Summary     string `json:"summary"`
+		}
+		var req RCARequest
+		if err := c.BodyParser(&req); err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Invalid RCA request payload", nil)
+		}
+		rootCause, whys, err := postmortemSynthesizer.AnalyzeRCA(c.Context(), req.LogsSnippet, req.Summary)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "RCA_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Root cause analysis completed", fiber.Map{
+			"root_cause_summary": rootCause,
+			"five_whys_analysis": whys,
+		})
+	})
+	wsGroup.Post("/:wsId/incidents/generate-postmortem", func(c *fiber.Ctx) error {
+		var req postmortem.PostmortemRequest
+		if err := c.BodyParser(&req); err != nil || req.IncidentTitle == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Incident title is required", nil)
+		}
+		report, err := postmortemSynthesizer.GeneratePostmortem(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "POSTMORTEM_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Incident postmortem report generated successfully", report)
 	})
 
 	// Enterprise Data Anonymization & PII Redaction Endpoints
