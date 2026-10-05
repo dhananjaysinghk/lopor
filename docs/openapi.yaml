@@ -292,3 +292,265 @@ paths:
       responses:
         '200':
           description: RRF Fused Results Returned
+
+  /ai/pricing-catalog:
+    get:
+      summary: Retrieve Model Pricing Matrix & Cache Discounts
+      responses:
+        '200':
+          description: Active pricing catalog across frontier AI models
+
+  /workspaces/{wsId}/ai/estimate-cost:
+    post:
+      summary: Real-Time Token & Streaming Cost Estimator
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cost breakdown, cache savings, and high cost flag returned
+
+  /agents/consensus/specialists:
+    get:
+      summary: List Specialist Debater Agents
+      responses:
+        '200':
+          description: Catalog of specialist agent debaters and voting weights
+
+  /workspaces/{wsId}/agents/consensus/debate:
+    post:
+      summary: Run Multi-Agent Consensus Debate
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Multi-round debate verdict, agreement score, and action items
+
+  /voice/tts/voices:
+    get:
+      summary: List Neural Text-to-Speech Voice Profiles
+      responses:
+        '200':
+          description: Neural voice profiles, accents, and format capabilities
+
+  /workspaces/{wsId}/voice/tts/synthesize:
+    post:
+      summary: Synthesize Spoken Audio from Text
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Encoded audio stream and speech duration metadata
+
+  /workspaces/{wsId}/voice/tts/document-brief:
+    post:
+      summary: Convert Document to Executive Spoken Audio Brief
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Narrated audio brief with spoken intro and outro
+
+  /workspaces/{wsId}/documents/dedup/analyze:
+    post:
+      summary: Semantic Document Deduplication & Clustering
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deduplication clusters, Jaccard pair matches, and token savings
+
+  /workspaces/{wsId}/workflows:
+    get:
+      summary: List Event-Driven Workflow Automation Rules
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Workspace automation rules list
+    post:
+      summary: Register Event-Driven Workflow Rule
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Workflow automation rule created
+
+  /workspaces/{wsId}/workflows/dispatch:
+    post:
+      summary: Dispatch Event Through Workflow Orchestrator
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Workflow execution audit traces
+
+  /workspaces/{wsId}/workflows/logs:
+    get:
+      summary: Retrieve Workflow Execution Audit Logs
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Workflow execution traces and latencies
+
+  /translation/languages:
+    get:
+      summary: List Supported Translation Languages
+      responses:
+        '200':
+          description: Language profiles, native names, and writing directions
+
+  /workspaces/{wsId}/translation/detect:
+    post:
+      summary: Automated Language Detection
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detected language code and confidence score
+
+  /workspaces/{wsId}/translation/translate:
+    post:
+      summary: Multi-Lingual Document Translation with Markdown Preservation
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Translated text with code blocks and links preserved
+
+  /security/redteam/attacks:
+    get:
+      summary: List Adversarial Red-Team Attack Vectors
+      responses:
+        '200':
+          description: Standardized OWASP/NIST adversarial attack test suite
+
+  /workspaces/{wsId}/security/redteam/fuzz:
+    post:
+      summary: Automated Adversarial Prompt Injection & Resilience Fuzzing
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Resilience score (0-100%), risk rating, and hardening patches
+
+  /workspaces/{wsId}/rag/index/health:
+    get:
+      summary: Vector Index Health & Bloat Diagnostics
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: pgvector HNSW fragmentation, dead tuples, and estimated recall
+
+  /workspaces/{wsId}/rag/index/calibrate:
+    post:
+      summary: HNSW Parameter Calibration
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Mathematically tuned m, ef_construction, and ef_search values
+
+  /workspaces/{wsId}/rag/index/optimize:
+    post:
+      summary: Generate Vector Index Compaction & Reindex Plan
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Zero-downtime maintenance SQL scripts (VACUUM, REINDEX)
+
+  /incidents/templates:
+    get:
+      summary: List SRE & Incident Postmortem Templates
+      responses:
+        '200':
+          description: Blameless postmortem templates and section guidelines
+
+  /workspaces/{wsId}/incidents/analyze-rca:
+    post:
+      summary: Log-Driven Root Cause Analysis & 5-Whys Interrogation
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Root cause isolation and Five Whys interrogation breakdown
+
+  /workspaces/{wsId}/incidents/generate-postmortem:
+    post:
+      summary: Generate Blameless Incident Postmortem Report
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Comprehensive postmortem report with timeline, MTTD/MTTR, and action items
+
