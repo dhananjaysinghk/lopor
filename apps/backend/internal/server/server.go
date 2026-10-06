@@ -43,6 +43,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/docgen"
 	"github.com/lopor-ai/lopor/pkg/docvision"
 	"github.com/lopor-ai/lopor/pkg/email"
+	"github.com/lopor-ai/lopor/pkg/federation"
 	"github.com/lopor-ai/lopor/pkg/gitops"
 	"github.com/lopor-ai/lopor/pkg/indexopt"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
@@ -526,6 +527,58 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusInternalServerError, "OPTIMIZATION_FAILED", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Vector index optimization plan generated", report)
+	})
+
+	// Cross-Workspace Knowledge Federation & Entity Graph Linking Endpoints
+	federationEngine := federation.NewFederationEngine()
+	wsGroup.Post("/:wsId/federation/policies", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var policy federation.FederationPolicy
+		if err := c.BodyParser(&policy); err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Invalid federation policy payload", nil)
+		}
+		policy.SourceWorkspaceID = wsID
+		if err := federationEngine.SetPolicy(policy); err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "POLICY_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Federation trust policy registered", policy)
+	})
+	wsGroup.Get("/:wsId/federation/policies", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		policies := federationEngine.GetPolicies(wsID)
+		return response.Success(c, fiber.StatusOK, "Workspace federation policies retrieved", policies)
+	})
+	wsGroup.Post("/:wsId/federation/search", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		type FedSearchReq struct {
+			Query string `json:"query"`
+			TopK  int    `json:"top_k"`
+		}
+		var req FedSearchReq
+		if err := c.BodyParser(&req); err != nil || req.Query == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Query is required for federated search", nil)
+		}
+		res, err := federationEngine.FederatedSearch(c.Context(), wsID, req.Query, req.TopK)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "FEDERATION_SEARCH_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Cross-workspace federated search completed", res)
+	})
+	wsGroup.Post("/:wsId/federation/discover-entities", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		type EntityReq struct {
+			TargetWorkspaceID string   `json:"target_workspace_id"`
+			Entities          []string `json:"entities"`
+		}
+		var req EntityReq
+		if err := c.BodyParser(&req); err != nil || req.TargetWorkspaceID == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "target_workspace_id is required", nil)
+		}
+		links, err := federationEngine.DiscoverCrossWorkspaceEntities(c.Context(), wsID, req.TargetWorkspaceID, req.Entities)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "ENTITY_DISCOVERY_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Cross-workspace entity links discovered", links)
 	})
 
 	// Live Web Grounding Search Endpoints
