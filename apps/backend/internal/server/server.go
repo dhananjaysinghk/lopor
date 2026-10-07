@@ -37,6 +37,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/consensus"
 	"github.com/lopor-ai/lopor/pkg/contextopt"
 	"github.com/lopor-ai/lopor/pkg/costcalc"
+	"github.com/lopor-ai/lopor/pkg/datagen"
 	"github.com/lopor-ai/lopor/pkg/dedup"
 	"github.com/lopor-ai/lopor/pkg/diffsynth"
 	"github.com/lopor-ai/lopor/pkg/docexport"
@@ -450,6 +451,33 @@ func NewServer(cfg Config) *fiber.App {
 		return response.Success(c, fiber.StatusOK, "Prompt benchmark evaluation completed", result)
 	})
 	wsGroup.Delete("/:wsId/prompts/:promptId", promptHandler.DeletePrompt)
+
+	// Synthetic Dataset & Benchmark Evaluation Generator Endpoints
+	datasetGenerator := datagen.NewDatasetGenerator()
+	wsGroup.Post("/:wsId/eval/generate-dataset", func(c *fiber.Ctx) error {
+		var req datagen.DatasetGenerationRequest
+		if err := c.BodyParser(&req); err != nil || req.Content == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Content is required for synthetic dataset generation", nil)
+		}
+		dataset, err := datasetGenerator.GenerateDataset(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "DATASET_GEN_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Synthetic evaluation dataset generated successfully", dataset)
+	})
+	wsGroup.Post("/:wsId/eval/datasets/export-jsonl", func(c *fiber.Ctx) error {
+		type ExportReq struct {
+			Items []datagen.DatasetItem `json:"items"`
+		}
+		var req ExportReq
+		if err := c.BodyParser(&req); err != nil || len(req.Items) == 0 {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Dataset items list is required", nil)
+		}
+		jsonl := datasetGenerator.FormatAsJSONL(req.Items)
+		c.Set("Content-Type", "application/x-jsonlines")
+		c.Set("Content-Disposition", "attachment; filename=\"eval_benchmark.jsonl\"")
+		return c.SendString(jsonl)
+	})
 
 	// AI Personas & System Prompt Management Endpoints
 	wsGroup.Post("/:wsId/personas", personaHandler.CreatePersona)
