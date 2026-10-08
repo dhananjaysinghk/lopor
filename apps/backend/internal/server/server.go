@@ -48,6 +48,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/gitops"
 	"github.com/lopor-ai/lopor/pkg/indexopt"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
+	"github.com/lopor-ai/lopor/pkg/lineage"
 	"github.com/lopor-ai/lopor/pkg/metering"
 	"github.com/lopor-ai/lopor/pkg/observability"
 	"github.com/lopor-ai/lopor/pkg/orchestrator"
@@ -298,6 +299,49 @@ func NewServer(cfg Config) *fiber.App {
 	// Audit Logs Endpoints
 	wsGroup.Get("/:wsId/audit-logs", auditHandler.GetWorkspaceAuditLogs)
 	wsGroup.Get("/:wsId/audit-logs/export", auditHandler.ExportAuditLogsCSV)
+
+	// Intelligent Data Lineage & RAG Provenance Tracking Endpoints
+	lineageTracker := lineage.NewTracker()
+	wsGroup.Post("/:wsId/lineage/record-node", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var node lineage.LineageNode
+		if err := c.BodyParser(&node); err != nil || node.ID == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Node ID and payload are required", nil)
+		}
+		if err := lineageTracker.RecordNode(wsID, node); err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "LINEAGE_RECORD_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Lineage node recorded successfully", node)
+	})
+	wsGroup.Post("/:wsId/lineage/record-edge", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var edge lineage.LineageEdge
+		if err := c.BodyParser(&edge); err != nil || edge.SourceNodeID == "" || edge.TargetNodeID == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Source and target node IDs are required", nil)
+		}
+		if err := lineageTracker.RecordEdge(wsID, edge); err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "LINEAGE_EDGE_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Lineage edge recorded successfully", edge)
+	})
+	wsGroup.Get("/:wsId/lineage/trace/:responseId", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		respID := c.Params("responseId")
+		graph, err := lineageTracker.TraceLineage(wsID, respID)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "TRACE_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Lineage DAG trace retrieved successfully", graph)
+	})
+	wsGroup.Get("/:wsId/lineage/certificate/:responseId", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		respID := c.Params("responseId")
+		cert, err := lineageTracker.GenerateProvenanceCertificate(wsID, respID)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "CERT_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Provenance compliance certificate generated", cert)
+	})
 
 	// License & Usage Metering Endpoints
 	meterService := metering.NewMeterService()
