@@ -47,6 +47,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/federation"
 	"github.com/lopor-ai/lopor/pkg/gitops"
 	"github.com/lopor-ai/lopor/pkg/indexopt"
+	"github.com/lopor-ai/lopor/pkg/intent"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
 	"github.com/lopor-ai/lopor/pkg/lineage"
 	"github.com/lopor-ai/lopor/pkg/metering"
@@ -536,6 +537,35 @@ func NewServer(cfg Config) *fiber.App {
 	wsGroup.Get("/:wsId/chats", chatHandler.GetWorkspaceChats)
 	wsGroup.Get("/:wsId/chats/:chatId", chatHandler.GetChatDetails)
 	wsGroup.Post("/:wsId/chats/:chatId/stream", chatHandler.StreamChatResponse)
+
+	// Semantic Router & Zero-Shot Intent Classifier Endpoints
+	semanticRouter := intent.NewSemanticRouter()
+	wsGroup.Get("/:wsId/router/intents", func(c *fiber.Ctx) error {
+		return response.Success(c, fiber.StatusOK, "Registered semantic intent routes retrieved", semanticRouter.GetRoutes())
+	})
+	wsGroup.Post("/:wsId/router/classify", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req intent.ClassificationRequest
+		if err := c.BodyParser(&req); err != nil || req.Prompt == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Prompt is required for intent classification", nil)
+		}
+		req.WorkspaceID = wsID
+		result, err := semanticRouter.ClassifyPrompt(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "CLASSIFICATION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Prompt semantically classified", result)
+	})
+	wsGroup.Post("/:wsId/router/intents", func(c *fiber.Ctx) error {
+		var route intent.IntentRoute
+		if err := c.BodyParser(&route); err != nil || route.ID == "" || route.Name == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "ID, Name, and Exemplars are required", nil)
+		}
+		if err := semanticRouter.RegisterCustomRoute(route); err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "ROUTE_REGISTRATION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Custom intent route registered successfully", route)
+	})
 
 	// Context Compression & Token Optimization Endpoints
 	contextCompressor := contextopt.NewContextCompressor()
