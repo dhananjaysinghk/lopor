@@ -56,6 +56,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/postmortem"
 	"github.com/lopor-ai/lopor/pkg/prompteval"
 	"github.com/lopor-ai/lopor/pkg/redteam"
+	"github.com/lopor-ai/lopor/pkg/reflection"
 	"github.com/lopor-ai/lopor/pkg/response"
 	"github.com/lopor-ai/lopor/pkg/sandbox"
 	"github.com/lopor-ai/lopor/pkg/search"
@@ -591,6 +592,40 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusInternalServerError, "ESTIMATION_FAILED", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Token and stream cost estimated successfully", result)
+	})
+
+	// Intelligent Self-Correction & Reflection Verification Loop Endpoints
+	reflectionEngine := reflection.NewReflectionEngine()
+	wsGroup.Post("/:wsId/ai/reflect", func(c *fiber.Ctx) error {
+		type ReflectReq struct {
+			Prompt          string `json:"prompt"`
+			CandidateOutput string `json:"candidate_output"`
+			Context         string `json:"context"`
+			OutputFormat    string `json:"output_format"`
+		}
+		var req ReflectReq
+		if err := c.BodyParser(&req); err != nil || req.CandidateOutput == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Candidate output is required for reflection", nil)
+		}
+		critiques, score, err := reflectionEngine.CritiqueOutput(c.Context(), req.Prompt, req.CandidateOutput, req.Context, req.OutputFormat)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "REFLECTION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Reflection critique evaluation completed", fiber.Map{
+			"score":     score,
+			"critiques": critiques,
+		})
+	})
+	wsGroup.Post("/:wsId/ai/self-correct", func(c *fiber.Ctx) error {
+		var req reflection.ReflectionRequest
+		if err := c.BodyParser(&req); err != nil || req.CandidateOutput == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Candidate output is required for self-correction", nil)
+		}
+		result, err := reflectionEngine.SelfCorrect(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "SELF_CORRECT_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Autonomous self-correction loop completed", result)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
