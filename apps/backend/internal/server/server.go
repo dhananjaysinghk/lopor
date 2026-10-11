@@ -50,6 +50,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/intent"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
 	"github.com/lopor-ai/lopor/pkg/lineage"
+	"github.com/lopor-ai/lopor/pkg/memory"
 	"github.com/lopor-ai/lopor/pkg/metering"
 	"github.com/lopor-ai/lopor/pkg/observability"
 	"github.com/lopor-ai/lopor/pkg/orchestrator"
@@ -626,6 +627,96 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusInternalServerError, "SELF_CORRECT_FAILED", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Autonomous self-correction loop completed", result)
+	})
+
+	// Hierarchical Long-Term Semantic Episodic Memory & Profile Consolidation Endpoints
+	memEngine := memory.NewMemoryEngine()
+	wsGroup.Post("/:wsId/memory/extract", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req memory.ExtractionRequest
+		if err := c.BodyParser(&req); err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Malformed memory extraction request payload", nil)
+		}
+		if req.WorkspaceID == "" {
+			req.WorkspaceID = wsID
+		}
+		if req.UserID == "" {
+			req.UserID = c.Get("X-User-ID", "default-user")
+		}
+		res, err := memEngine.ExtractAndStore(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "EXTRACTION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Salient episodic memories extracted and stored", res)
+	})
+
+	wsGroup.Post("/:wsId/memory/recall", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req memory.RecallRequest
+		if err := c.BodyParser(&req); err != nil || req.Query == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Query string is required for memory recall", nil)
+		}
+		if req.WorkspaceID == "" {
+			req.WorkspaceID = wsID
+		}
+		if req.UserID == "" {
+			req.UserID = c.Get("X-User-ID", "default-user")
+		}
+		res, err := memEngine.RecallMemories(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "RECALL_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Contextual memories recalled successfully", res)
+	})
+
+	wsGroup.Get("/:wsId/memory/items", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		userID := c.Query("user_id", c.Get("X-User-ID", "default-user"))
+		catFilterStr := c.Query("category")
+		var catFilter []memory.MemoryCategory
+		if catFilterStr != "" {
+			catFilter = append(catFilter, memory.MemoryCategory(catFilterStr))
+		}
+		items := memEngine.GetStore().List(wsID, userID, catFilter)
+		return response.Success(c, fiber.StatusOK, "Active episodic memories retrieved", fiber.Map{
+			"total": len(items),
+			"items": items,
+		})
+	})
+
+	wsGroup.Post("/:wsId/memory/consolidate", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		type ConsolidateReq struct {
+			UserID string `json:"user_id"`
+		}
+		var req ConsolidateReq
+		_ = c.BodyParser(&req)
+		if req.UserID == "" {
+			req.UserID = c.Get("X-User-ID", "default-user")
+		}
+		report, err := memEngine.Consolidate(c.Context(), wsID, req.UserID)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "CONSOLIDATION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Memory consolidation and deduplication completed", report)
+	})
+
+	wsGroup.Delete("/:wsId/memory/items/:memoryId", func(c *fiber.Ctx) error {
+		memID := c.Params("memoryId")
+		deleted := memEngine.GetStore().Delete(memID)
+		if !deleted {
+			return response.Error(c, fiber.StatusNotFound, "NOT_FOUND", "Memory item not found", nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Memory item deleted successfully", nil)
+	})
+
+	wsGroup.Delete("/:wsId/memory/purge", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		userID := c.Query("user_id", c.Get("X-User-ID", "default-user"))
+		purged := memEngine.GetStore().PurgeUser(wsID, userID)
+		return response.Success(c, fiber.StatusOK, "User episodic memories purged (GDPR right-to-be-forgotten)", fiber.Map{
+			"purged_count": purged,
+		})
 	})
 
 	// RAG Vector & File Ingestion Endpoints
