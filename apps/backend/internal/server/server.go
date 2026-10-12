@@ -46,6 +46,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/email"
 	"github.com/lopor-ai/lopor/pkg/federation"
 	"github.com/lopor-ai/lopor/pkg/gitops"
+	"github.com/lopor-ai/lopor/pkg/guardrails"
 	"github.com/lopor-ai/lopor/pkg/indexopt"
 	"github.com/lopor-ai/lopor/pkg/intent"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
@@ -717,6 +718,44 @@ func NewServer(cfg Config) *fiber.App {
 		return response.Success(c, fiber.StatusOK, "User episodic memories purged (GDPR right-to-be-forgotten)", fiber.Map{
 			"purged_count": purged,
 		})
+	})
+
+	// Enterprise AI Guardrail, Jailbreak Barrier & Real-Time Firewall Endpoints
+	guardEngine := guardrails.NewGuardrailEngine()
+	wsGroup.Post("/:wsId/guardrails/inspect", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req guardrails.InspectionRequest
+		if err := c.BodyParser(&req); err != nil || req.Content == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Content payload is required for guardrail inspection", nil)
+		}
+		if req.WorkspaceID == "" {
+			req.WorkspaceID = wsID
+		}
+		if req.Direction == "" {
+			req.Direction = guardrails.DirectionInboundPrompt
+		}
+		res, err := guardEngine.Inspect(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "GUARDRAIL_INSPECTION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Guardrail firewall evaluation completed", res)
+	})
+
+	wsGroup.Get("/:wsId/guardrails/profile", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		profile := guardEngine.GetWorkspaceProfile(wsID)
+		return response.Success(c, fiber.StatusOK, "Workspace guardrail profile retrieved", profile)
+	})
+
+	wsGroup.Put("/:wsId/guardrails/profile", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var profile guardrails.GuardrailProfile
+		if err := c.BodyParser(&profile); err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Invalid guardrail profile payload", nil)
+		}
+		profile.WorkspaceID = wsID
+		guardEngine.SetWorkspaceProfile(profile)
+		return response.Success(c, fiber.StatusOK, "Workspace guardrail profile updated", guardEngine.GetWorkspaceProfile(wsID))
 	})
 
 	// RAG Vector & File Ingestion Endpoints
