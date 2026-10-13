@@ -46,6 +46,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/email"
 	"github.com/lopor-ai/lopor/pkg/federation"
 	"github.com/lopor-ai/lopor/pkg/gitops"
+	"github.com/lopor-ai/lopor/pkg/graphrag"
 	"github.com/lopor-ai/lopor/pkg/guardrails"
 	"github.com/lopor-ai/lopor/pkg/indexopt"
 	"github.com/lopor-ai/lopor/pkg/intent"
@@ -756,6 +757,65 @@ func NewServer(cfg Config) *fiber.App {
 		profile.WorkspaceID = wsID
 		guardEngine.SetWorkspaceProfile(profile)
 		return response.Success(c, fiber.StatusOK, "Workspace guardrail profile updated", guardEngine.GetWorkspaceProfile(wsID))
+	})
+
+	// Hierarchical GraphRAG, Triplet Extraction & Community Synthesis Endpoints
+	graphRAGEngine := graphrag.NewGraphRAGEngine()
+	wsGroup.Post("/:wsId/graphrag/extract", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req graphrag.GraphExtractionRequest
+		if err := c.BodyParser(&req); err != nil || req.Content == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Content text is required for graph extraction", nil)
+		}
+		if req.WorkspaceID == "" {
+			req.WorkspaceID = wsID
+		}
+		res, err := graphRAGEngine.ExtractAndIngest(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "GRAPHRAG_EXTRACTION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Knowledge graph triplets extracted and communities updated", res)
+	})
+
+	wsGroup.Post("/:wsId/graphrag/search/local", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req graphrag.LocalGraphSearchRequest
+		if err := c.BodyParser(&req); err != nil || req.Query == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Query string is required for local graph search", nil)
+		}
+		if req.WorkspaceID == "" {
+			req.WorkspaceID = wsID
+		}
+		res, err := graphRAGEngine.LocalSearch(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "LOCAL_GRAPH_SEARCH_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Local knowledge graph traversal completed", res)
+	})
+
+	wsGroup.Post("/:wsId/graphrag/search/global", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req graphrag.GlobalGraphSearchRequest
+		if err := c.BodyParser(&req); err != nil || req.Query == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Query string is required for global graph search", nil)
+		}
+		if req.WorkspaceID == "" {
+			req.WorkspaceID = wsID
+		}
+		res, err := graphRAGEngine.GlobalSearch(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "GLOBAL_GRAPH_SEARCH_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Global community graph synthesis completed", res)
+	})
+
+	wsGroup.Get("/:wsId/graphrag/visual", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		res, err := graphRAGEngine.GetGraphVisual(c.Context(), wsID)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "GRAPH_VISUAL_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Knowledge graph visual topology retrieved", res)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
