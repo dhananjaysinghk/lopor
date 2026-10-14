@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -60,6 +61,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/prompteval"
 	"github.com/lopor-ai/lopor/pkg/redteam"
 	"github.com/lopor-ai/lopor/pkg/reflection"
+	"github.com/lopor-ai/lopor/pkg/resilience"
 	"github.com/lopor-ai/lopor/pkg/response"
 	"github.com/lopor-ai/lopor/pkg/sandbox"
 	"github.com/lopor-ai/lopor/pkg/search"
@@ -816,6 +818,53 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusInternalServerError, "GRAPH_VISUAL_FAILED", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Knowledge graph visual topology retrieved", res)
+	})
+
+	// Multi-Provider Resilience, Dynamic Load Balancing & Circuit Breaker Endpoints
+	resilienceEngine := resilience.NewResilienceEngine()
+	wsGroup.Get("/:wsId/resilience/pools/:poolId", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		poolID := c.Params("poolId")
+		status, err := resilienceEngine.GetPoolStatus(wsID, poolID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "POOL_NOT_FOUND", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Provider pool telemetry and circuit status retrieved", status)
+	})
+
+	wsGroup.Post("/:wsId/resilience/pools", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var cfg resilience.ProviderPoolConfig
+		if err := c.BodyParser(&cfg); err != nil || cfg.PoolID == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Valid pool configuration with pool_id required", nil)
+		}
+		cfg.WorkspaceID = wsID
+		resilienceEngine.RegisterPool(cfg)
+		status, _ := resilienceEngine.GetPoolStatus(wsID, cfg.PoolID)
+		return response.Success(c, fiber.StatusOK, "Provider pool registered successfully", status)
+	})
+
+	wsGroup.Post("/:wsId/resilience/execute", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req resilience.ExecutionRequest
+		if err := c.BodyParser(&req); err != nil || req.Prompt == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Prompt text is required for resilient execution", nil)
+		}
+		if req.WorkspaceID == "" {
+			req.WorkspaceID = wsID
+		}
+		if req.PoolID == "" {
+			req.PoolID = "default-pool"
+		}
+
+		res, err := resilienceEngine.ExecuteWithFallback(c.Context(), req, func(ctx context.Context, providerID, model string) (string, error) {
+			// Mock simulated completion or pass to active client
+			return fmt.Sprintf("Response synthesized via provider '%s' (model: '%s') for prompt: '%s'", providerID, model, req.Prompt), nil
+		})
+		if err != nil {
+			return response.Error(c, fiber.StatusServiceUnavailable, "ALL_PROVIDERS_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Resilient multi-provider execution completed", res)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
