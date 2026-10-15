@@ -110,3 +110,131 @@ data: {"usage": {"prompt_tokens": 120, "completion_tokens": 45}}
 | `PATCH` | `/:id` | Save/Autosave document content | Yes |
 | `DELETE` | `/:id` | Soft delete / archive document | Yes |
 | `POST` | `/upload-file` | Upload file (PDF, DOCX, Code) & queue background RAG embedding | Yes |
+
+---
+
+## 3. Advanced Enterprise Intelligence Modules (Phases 51–70)
+
+### Real-Time Streaming Token & Cost Calculator (`/api/v1/cost`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/estimate` | Estimate input/output tokens and cost across LLM models | Yes |
+
+### Multi-Agent Consensus & Debate Engine (`/api/v1/workspaces/:wsId/consensus`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/debate` | Multi-persona adversarial consensus debate and synthesis | Yes |
+| `POST` | `/quick-vote` | Rapid multi-model voting agreement protocol | Yes |
+
+### Neural Text-to-Speech (TTS) & Audio Narration (`/api/v1`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/voice/tts/voices` | List available neural TTS voices and accents | No |
+| `POST` | `/workspaces/:wsId/voice/tts/synthesize` | Convert text to speech audio waveforms | Yes |
+| `POST` | `/workspaces/:wsId/voice/tts/document-brief` | Generate spoken executive document briefing | Yes |
+
+### Semantic Document Deduplication & Clustering (`/api/v1/workspaces/:wsId/dedup`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/analyze` | Identify near-duplicate documents and semantic clusters | Yes |
+| `POST` | `/merge` | Execute canonical consolidation and redirect links | Yes |
+
+### Event-Driven Workflow Automation & Orchestrator (`/api/v1/workspaces/:wsId/orchestrator`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/workflows` | Register event-driven workflow definition | Yes |
+| `GET` | `/workflows` | List workspace workflow pipelines | Yes |
+| `POST` | `/dispatch` | Trigger asynchronous workflow execution | Yes |
+| `GET` | `/runs/:runId` | Poll workflow execution state and node logs | Yes |
+
+### Multi-Lingual Document Translation & Localization (`/api/v1/workspaces/:wsId/translation`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/languages` | Supported ISO-639 locale codes and capabilities | Yes |
+| `POST` | `/translate` | Format-preserving multi-lingual text/markdown translation | Yes |
+| `POST` | `/localize-document` | Complete document batch localization pipeline | Yes |
+
+### Red-Team Security Fuzzer & Prompt Resilience (`/api/v1/workspaces/:wsId/redteam`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/fuzz-prompt` | Execute automated prompt adversarial jailbreak fuzzing | Yes |
+| `POST` | `/assess-resilience` | Comprehensive prompt safety resilience grading report | Yes |
+
+### Vector Index Optimization & HNSW Calibration (`/api/v1/workspaces/:wsId/rag/index`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/calibrate` | Dynamic tuning of HNSW `m`, `ef_construction`, `ef_search` | Yes |
+| `POST` | `/optimize` | Zero-downtime compaction and VACUUM/REINDEX plan generation | Yes |
+
+### SRE Incident Postmortem & Root Cause Analysis (`/api/v1/workspaces/:wsId/incidents`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/templates` | List blameless postmortem section templates | Yes |
+| `POST` | `/analyze-rca` | Five-Whys log-driven root cause failure analysis | Yes |
+| `POST` | `/generate-postmortem` | Synthesize complete blameless postmortem report | Yes |
+
+### Knowledge Federation & Semantic Linker (`/api/v1/workspaces/:wsId/federation`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/links` | List cross-workspace semantic federation links | Yes |
+| `POST` | `/links` | Establish federated entity link between workspaces | Yes |
+| `POST` | `/query` | Execute cross-workspace federated RAG query | Yes |
+
+### AI Synthetic Dataset & Benchmark Generator (`/api/v1/workspaces/:wsId/eval/datasets`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/templates` | List benchmark schema templates (MMLU, QA, CodeGen) | Yes |
+| `POST` | `/generate` | Synthesize domain-specific evaluation benchmarks | Yes |
+
+### Data Lineage & RAG Provenance Tracking (`/api/v1/workspaces/:wsId/lineage`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/record` | Capture citation hash and chunk transformation event | Yes |
+| `GET` | `/trace` | Trace AI completion provenance back to raw document origins | Yes |
+| `GET` | `/graph` | Get DAG graph topology of knowledge provenance | Yes |
+
+### Semantic Intent Router & Zero-Shot Classifier (`/api/v1/workspaces/:wsId/router`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/intents` | List platform capability routes and exemplars | Yes |
+| `POST` | `/intents` | Register custom workspace intent and target route | Yes |
+| `POST` | `/classify` | Sub-5ms zero-shot query classification and endpoint routing | Yes |
+
+### Autonomous Reflection & Self-Correction (`/api/v1/workspaces/:wsId/ai`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/reflect` | Evaluate 4-D critique (Faithfulness, Code, Constraints, Completeness) | Yes |
+| `POST` | `/self-correct` | Autonomous iterative reflection loop until threshold satisfied | Yes |
+
+### Long-Term Episodic Memory & Profile Consolidation (`/api/v1/workspaces/:wsId/memory`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/extract` | Extract episodic memories and preferences from conversation | Yes |
+| `POST` | `/recall` | Contextual recall with recency decay and prompt injection block | Yes |
+| `GET` | `/items` | List user memories filtered by category | Yes |
+| `DELETE` | `/items/:memoryId` | Delete specific memory item | Yes |
+| `POST` | `/consolidate` | Deduplicate and prune decayed knowledge | Yes |
+| `DELETE` | `/purge` | Permanent GDPR Right-to-be-Forgotten memory wipe | Yes |
+
+### Enterprise AI Guardrails & Security Firewall (`/api/v1/workspaces/:wsId/guardrails`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/inspect` | Bi-directional prompt/output firewall inspection | Yes |
+| `GET` | `/profile` | Retrieve workspace guardrail thresholds and custom rules | Yes |
+| `PUT` | `/profile` | Update workspace severity thresholds and secret masking | Yes |
+
+### Hierarchical GraphRAG & Knowledge Triplet Engine (`/api/v1/workspaces/:wsId/graphrag`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/extract` | Extract entity triplets and detect community clusters | Yes |
+| `POST` | `/search/local` | 1-hop and 2-hop entity neighborhood subgraph traversal | Yes |
+| `POST` | `/search/global` | Cross-community thematic architectural synthesis | Yes |
+| `GET` | `/visual` | Force-directed graph topology schema (D3/Cytoscape) | Yes |
+
+### Multi-Provider Resilience & Circuit Breaker (`/api/v1/workspaces/:wsId/resilience`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/pools/:poolId` | Provider health, circuit states (CLOSED/OPEN/HALF_OPEN), latencies | Yes |
+| `POST` | `/pools` | Configure multi-provider ensemble and balance strategies | Yes |
+| `POST` | `/execute` | Resilient completion with automatic cascading failover | Yes |
+

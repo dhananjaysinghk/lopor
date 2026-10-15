@@ -554,3 +554,394 @@ paths:
         '200':
           description: Comprehensive postmortem report with timeline, MTTD/MTTR, and action items
 
+  # Phase 61: Knowledge Federation & Entity Graph Linker
+  /workspaces/{wsId}/federation/links:
+    get:
+      summary: List Federated Workspace Semantic Links
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Array of cross-workspace semantic federation links
+    post:
+      summary: Register Cross-Workspace Federation Link
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Federation link established
+
+  /workspaces/{wsId}/federation/query:
+    post:
+      summary: Cross-Workspace Federated Search Query
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Federated semantic search results spanning linked workspaces
+
+  # Phase 62: AI Synthetic Dataset & Benchmark Evaluation Generator
+  /workspaces/{wsId}/eval/datasets/generate:
+    post:
+      summary: Generate Synthetic AI Benchmark & Fine-Tuning Dataset
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Synthetic evaluation dataset and domain benchmarks
+
+  /workspaces/{wsId}/eval/datasets/templates:
+    get:
+      summary: List Evaluation Dataset Benchmark Templates
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Available synthetic benchmark and evaluation templates
+
+  # Phase 63: Intelligent Data Lineage & RAG Provenance Tracking
+  /workspaces/{wsId}/lineage/record:
+    post:
+      summary: Record Document Chunk Lineage & LLM Provenance Event
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lineage event preserved with citation hashes
+
+  /workspaces/{wsId}/lineage/trace:
+    get:
+      summary: Trace AI Completion Lineage & Document Citation Provenance
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Complete provenance trace and citation attribution
+
+  /workspaces/{wsId}/lineage/graph:
+    get:
+      summary: Get Workspace Data Lineage Graph Topology
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Node-edge DAG of document chunks, transformations, and model outputs
+
+  # Phase 64: Intelligent Semantic Router & Zero-Shot Intent Classifier
+  /workspaces/{wsId}/router/intents:
+    get:
+      summary: List Registered Semantic Intent Routes
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Array of capability routes, exemplars, and target endpoints
+    post:
+      summary: Register Custom Workspace Intent Route
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Custom intent route registered
+
+  /workspaces/{wsId}/router/classify:
+    post:
+      summary: Sub-5ms Zero-Shot Prompt Intent Classification
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Primary intent classification, confidence scores, and recommended route
+
+  # Phase 65: Intelligent Self-Correction & Autonomous Reflection Verification
+  /workspaces/{wsId}/ai/reflect:
+    post:
+      summary: Multi-Dimensional AI Output Critique & Reflection
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Faithfulness, code correctness, constraint adherence, and completeness scores
+
+  /workspaces/{wsId}/ai/self-correct:
+    post:
+      summary: Autonomous Reflection & Iterative Self-Correction Loop
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Iterative refinement history and verified compliant output
+
+  # Phase 66: Hierarchical Long-Term Semantic Episodic Memory & Profile Consolidation
+  /workspaces/{wsId}/memory/extract:
+    post:
+      summary: Extract Episodic Knowledge & User Preferences from Dialogue
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Salient episodic memories extracted and stored
+
+  /workspaces/{wsId}/memory/recall:
+    post:
+      summary: Contextual Memory Retrieval with Recency Decay & Prompt Augmentation
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Recalled memories and formatted XML prompt injection block
+
+  /workspaces/{wsId}/memory/items:
+    get:
+      summary: List Active Episodic Memories for User
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Active episodic memories filtered by category
+
+  /workspaces/{wsId}/memory/items/{memoryId}:
+    delete:
+      summary: Delete Specific Episodic Memory Item
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: memoryId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Memory item deleted successfully
+
+  /workspaces/{wsId}/memory/consolidate:
+    post:
+      summary: Consolidate & Deduplicate User Episodic Memories
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Consolidation report with merged and pruned memory counts
+
+  /workspaces/{wsId}/memory/purge:
+    delete:
+      summary: GDPR Right-to-be-Forgotten Permanent Memory Purge
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: All user memories permanently erased
+
+  # Phase 67: Enterprise AI Guardrail, Jailbreak Barrier & Real-Time Firewall
+  /workspaces/{wsId}/guardrails/inspect:
+    post:
+      summary: Bi-Directional AI Prompt & Completion Firewall Inspection
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Firewall evaluation, threat violations, action (BLOCK/SANITIZE/PASS), and masked text
+
+  /workspaces/{wsId}/guardrails/profile:
+    get:
+      summary: Get Workspace Guardrail Policy Profile
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Active severity block thresholds, secret masking toggles, and custom rules
+    put:
+      summary: Update Workspace Guardrail Policy Profile
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Guardrail policy profile updated
+
+  # Phase 68: Hierarchical GraphRAG, Triplet Extraction & Community Synthesis
+  /workspaces/{wsId}/graphrag/extract:
+    post:
+      summary: Ingest Document & Extract Knowledge Graph Triplets
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Extracted entities, relational edges, and updated community partitions
+
+  /workspaces/{wsId}/graphrag/search/local:
+    post:
+      summary: Local Graph Search & Multi-Hop Entity Neighborhood Traversal
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subgraph context, connected nodes, edges, and confidence score
+
+  /workspaces/{wsId}/graphrag/search/global:
+    post:
+      summary: Global Graph Search & Cross-Community Thematic Synthesis
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Holistic architectural synthesis across modular community clusters
+
+  /workspaces/{wsId}/graphrag/visual:
+    get:
+      summary: Get Force-Directed Graph Visualization Data (D3/Cytoscape)
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Nodes, links, degrees, and community clusters for graph UI rendering
+
+  # Phase 69: Multi-Provider Resilience, Dynamic Load Balancing & Circuit Breaker
+  /workspaces/{wsId}/resilience/pools/{poolId}:
+    get:
+      summary: Get Provider Pool Health Telemetry & Circuit Breaker States
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: poolId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Provider health, circuit states (CLOSED/OPEN/HALF_OPEN), and average latencies
+
+  /workspaces/{wsId}/resilience/pools:
+    post:
+      summary: Configure Workspace Multi-Provider Resilience Ensemble
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Provider pool registered with custom balancing strategy and trip thresholds
+
+  /workspaces/{wsId}/resilience/execute:
+    post:
+      summary: Resilient Multi-Provider Execution with Automated Cascading Failover
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Completion synthesized with provider fallback chain and latency metrics
+
+
