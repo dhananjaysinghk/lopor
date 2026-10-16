@@ -49,6 +49,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/gitops"
 	"github.com/lopor-ai/lopor/pkg/graphrag"
 	"github.com/lopor-ai/lopor/pkg/guardrails"
+	"github.com/lopor-ai/lopor/pkg/hitl"
 	"github.com/lopor-ai/lopor/pkg/indexopt"
 	"github.com/lopor-ai/lopor/pkg/intent"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
@@ -865,6 +866,98 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusServiceUnavailable, "ALL_PROVIDERS_FAILED", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Resilient multi-provider execution completed", res)
+	})
+
+	// Human-in-the-Loop (HITL) Policy, Approval Gate & Intervention Endpoints
+	hitlEngine := hitl.NewHITLEngine()
+	wsGroup.Post("/:wsId/hitl/evaluate", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req hitl.InterceptRequest
+		if err := c.BodyParser(&req); err != nil || req.ToolName == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Tool name is required for HITL evaluation", nil)
+		}
+		if req.WorkspaceID == "" {
+			req.WorkspaceID = wsID
+		}
+		ticket, requiresApproval, err := hitlEngine.EvaluateAndIntercept(c.Context(), req)
+		if err != nil && ticket != nil && ticket.Status == hitl.StatusRejected {
+			return response.Error(c, fiber.StatusForbidden, "ACTION_BLOCKED", err.Error(), ticket)
+		}
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "HITL_EVALUATION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "HITL intervention policy evaluated", fiber.Map{
+			"requires_approval": requiresApproval,
+			"ticket":            ticket,
+		})
+	})
+
+	wsGroup.Get("/:wsId/hitl/tickets", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		statusQuery := c.Query("status")
+		var filter []hitl.ApprovalStatus
+		if statusQuery != "" {
+			filter = append(filter, hitl.ApprovalStatus(statusQuery))
+		}
+		tickets := hitlEngine.ListTickets(wsID, filter)
+		return response.Success(c, fiber.StatusOK, "HITL approval tickets retrieved", fiber.Map{
+			"total":   len(tickets),
+			"tickets": tickets,
+		})
+	})
+
+	wsGroup.Get("/:wsId/hitl/tickets/:ticketId", func(c *fiber.Ctx) error {
+		ticketID := c.Params("ticketId")
+		ticket, err := hitlEngine.GetTicket(ticketID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "TICKET_NOT_FOUND", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "HITL approval ticket details retrieved", ticket)
+	})
+
+	wsGroup.Post("/:wsId/hitl/tickets/:ticketId/review", func(c *fiber.Ctx) error {
+		ticketID := c.Params("ticketId")
+		type ReviewReq struct {
+			ReviewerID     string                 `json:"reviewer_id"`
+			ReviewerName   string                 `json:"reviewer_name"`
+			Decision       hitl.ReviewDecision    `json:"decision"`
+			Feedback       string                 `json:"feedback"`
+			ModifiedParams map[string]interface{} `json:"modified_params"`
+		}
+		var req ReviewReq
+		if err := c.BodyParser(&req); err != nil || req.Decision == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Review decision ('APPROVE', 'REJECT', 'CANCEL') is required", nil)
+		}
+		if req.ReviewerID == "" {
+			req.ReviewerID = c.Get("X-User-ID", "admin-reviewer")
+		}
+		if req.ReviewerName == "" {
+			req.ReviewerName = "Workspace Reviewer"
+		}
+
+		ticket, err := hitlEngine.SubmitReview(c.Context(), hitl.ReviewSubmission{
+			TicketID:       ticketID,
+			ReviewerID:     req.ReviewerID,
+			ReviewerName:   req.ReviewerName,
+			Decision:       req.Decision,
+			Feedback:       req.Feedback,
+			ModifiedParams: req.ModifiedParams,
+		})
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "REVIEW_SUBMISSION_FAILED", err.Error(), ticket)
+		}
+		return response.Success(c, fiber.StatusOK, "HITL review decision recorded", ticket)
+	})
+
+	wsGroup.Put("/:wsId/hitl/config", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var cfg hitl.WorkspaceHITLConfig
+		if err := c.BodyParser(&cfg); err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Invalid HITL policy configuration payload", nil)
+		}
+		cfg.WorkspaceID = wsID
+		hitlEngine.ConfigureWorkspace(cfg)
+		return response.Success(c, fiber.StatusOK, "Workspace HITL policy configuration updated", hitlEngine.GetWorkspaceConfig(wsID))
 	})
 
 	// RAG Vector & File Ingestion Endpoints
