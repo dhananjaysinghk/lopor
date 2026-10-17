@@ -32,6 +32,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/agenteval"
 	"github.com/lopor-ai/lopor/pkg/ai"
 	"github.com/lopor-ai/lopor/pkg/anonymizer"
+	"github.com/lopor-ai/lopor/pkg/clarification"
 	"github.com/lopor-ai/lopor/pkg/codereview"
 	"github.com/lopor-ai/lopor/pkg/codestudio"
 	"github.com/lopor-ai/lopor/pkg/collaboration"
@@ -958,6 +959,36 @@ func NewServer(cfg Config) *fiber.App {
 		cfg.WorkspaceID = wsID
 		hitlEngine.ConfigureWorkspace(cfg)
 		return response.Success(c, fiber.StatusOK, "Workspace HITL policy configuration updated", hitlEngine.GetWorkspaceConfig(wsID))
+	})
+
+	// Intelligent Conversational Query Disambiguation & Clarification Endpoints
+	clarificationEngine := clarification.NewClarificationEngine()
+	wsGroup.Post("/:wsId/clarification/analyze", func(c *fiber.Ctx) error {
+		type AnalyzeReq struct {
+			Query   string `json:"query"`
+			Context string `json:"context"`
+		}
+		var req AnalyzeReq
+		if err := c.BodyParser(&req); err != nil || req.Query == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Query string is required for ambiguity analysis", nil)
+		}
+		analysis, err := clarificationEngine.AnalyzeQuery(c.Context(), req.Query, req.Context)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "ANALYSIS_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Query ambiguity analysis completed", analysis)
+	})
+
+	wsGroup.Post("/:wsId/clarification/fuse", func(c *fiber.Ctx) error {
+		var req clarification.FusionRequest
+		if err := c.BodyParser(&req); err != nil || req.OriginalQuery == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Original query and answers are required for context fusion", nil)
+		}
+		result, err := clarificationEngine.FuseClarification(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "FUSION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Query context fusion completed", result)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
