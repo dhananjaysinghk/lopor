@@ -55,6 +55,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/intent"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
 	"github.com/lopor-ai/lopor/pkg/lineage"
+	"github.com/lopor-ai/lopor/pkg/llmjudge"
 	"github.com/lopor-ai/lopor/pkg/memory"
 	"github.com/lopor-ai/lopor/pkg/metering"
 	"github.com/lopor-ai/lopor/pkg/observability"
@@ -989,6 +990,65 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusInternalServerError, "FUSION_FAILED", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Query context fusion completed", result)
+	})
+
+	// Automated AI Evaluation Harness & LLM-as-a-Judge Scoring Endpoints
+	judgeService := llmjudge.NewLLMJudgeService()
+	wsGroup.Post("/:wsId/judge/pointwise", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req llmjudge.PointwiseJudgeRequest
+		if err := c.BodyParser(&req); err != nil || req.CandidateOutput == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Candidate output is required for pointwise evaluation", nil)
+		}
+		if req.WorkspaceID == "" {
+			req.WorkspaceID = wsID
+		}
+		result, err := judgeService.JudgePointwise(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "JUDGE_EVALUATION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Pointwise judge evaluation completed", result)
+	})
+
+	wsGroup.Post("/:wsId/judge/pairwise", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req llmjudge.PairwiseJudgeRequest
+		if err := c.BodyParser(&req); err != nil || req.CandidateA == "" || req.CandidateB == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Both candidate completions are required for pairwise comparison", nil)
+		}
+		if req.WorkspaceID == "" {
+			req.WorkspaceID = wsID
+		}
+		result, err := judgeService.JudgePairwise(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "PAIRWISE_JUDGE_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Blind pairwise comparison completed", result)
+	})
+
+	wsGroup.Post("/:wsId/judge/tournament", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req llmjudge.TournamentRequest
+		if err := c.BodyParser(&req); err != nil || len(req.Candidates) < 2 {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "At least two candidates required for tournament", nil)
+		}
+		if req.WorkspaceID == "" {
+			req.WorkspaceID = wsID
+		}
+		result, err := judgeService.RunTournament(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "TOURNAMENT_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Tournament benchmark executed successfully", result)
+	})
+
+	wsGroup.Get("/:wsId/judge/leaderboard", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		board := judgeService.GetLeaderboard(c.Context(), wsID)
+		return response.Success(c, fiber.StatusOK, "Model competitive Elo leaderboard retrieved", fiber.Map{
+			"total_models": len(board),
+			"leaderboard":  board,
+		})
 	})
 
 	// RAG Vector & File Ingestion Endpoints
