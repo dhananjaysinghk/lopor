@@ -33,6 +33,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/ai"
 	"github.com/lopor-ai/lopor/pkg/anonymizer"
 	"github.com/lopor-ai/lopor/pkg/clarification"
+	"github.com/lopor-ai/lopor/pkg/chunking"
 	"github.com/lopor-ai/lopor/pkg/codereview"
 	"github.com/lopor-ai/lopor/pkg/codestudio"
 	"github.com/lopor-ai/lopor/pkg/collaboration"
@@ -1049,6 +1050,24 @@ func NewServer(cfg Config) *fiber.App {
 			"total_models": len(board),
 			"leaderboard":  board,
 		})
+	})
+
+	// Adaptive Semantic Document Chunking & Content-Aware Parser Endpoints
+	chunkingEngine := chunking.NewChunkingEngine()
+	wsGroup.Post("/:wsId/chunking/process", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req chunking.ChunkingRequest
+		if err := c.BodyParser(&req); err != nil || req.RawContent == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Raw document content is required for structural chunking", nil)
+		}
+		if req.WorkspaceID == "" {
+			req.WorkspaceID = wsID
+		}
+		result, err := chunkingEngine.ChunkDocument(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "CHUNKING_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Structural content-aware document chunking completed", result)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
