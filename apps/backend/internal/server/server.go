@@ -70,6 +70,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/sandbox"
 	"github.com/lopor-ai/lopor/pkg/search"
 	"github.com/lopor-ai/lopor/pkg/secscan"
+	"github.com/lopor-ai/lopor/pkg/semanticcache"
 	"github.com/lopor-ai/lopor/pkg/sqlsynth"
 	"github.com/lopor-ai/lopor/pkg/taskplanner"
 	"github.com/lopor-ai/lopor/pkg/testgen"
@@ -1068,6 +1069,55 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusInternalServerError, "CHUNKING_FAILED", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Structural content-aware document chunking completed", result)
+	})
+
+	// Adaptive Semantic Vector Query Cache & Cost Elimination Gateway Endpoints
+	semanticCacheEngine := semanticcache.NewSemanticCacheEngine(5000)
+	wsGroup.Post("/:wsId/cache/lookup", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req semanticcache.CacheLookupRequest
+		if err := c.BodyParser(&req); err != nil || req.Query == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Query string is required for cache lookup", nil)
+		}
+		if req.WorkspaceID == "" {
+			req.WorkspaceID = wsID
+		}
+		result, err := semanticCacheEngine.Lookup(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "CACHE_LOOKUP_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Semantic cache lookup completed", result)
+	})
+
+	wsGroup.Post("/:wsId/cache/store", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req semanticcache.CacheStoreRequest
+		if err := c.BodyParser(&req); err != nil || req.Query == "" || req.Response == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Query and response are required to store in cache", nil)
+		}
+		if req.WorkspaceID == "" {
+			req.WorkspaceID = wsID
+		}
+		err := semanticCacheEngine.Store(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "CACHE_STORE_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Response stored in semantic vector cache", nil)
+	})
+
+	wsGroup.Get("/:wsId/cache/telemetry", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		telemetry := semanticCacheEngine.GetTelemetry(c.Context(), wsID)
+		return response.Success(c, fiber.StatusOK, "Semantic cache efficiency telemetry retrieved", telemetry)
+	})
+
+	wsGroup.Delete("/:wsId/cache/invalidate", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		modelID := c.Query("model_id")
+		count := semanticCacheEngine.Invalidate(c.Context(), wsID, modelID)
+		return response.Success(c, fiber.StatusOK, "Semantic cache invalidated successfully", fiber.Map{
+			"purged_entries": count,
+		})
 	})
 
 	// RAG Vector & File Ingestion Endpoints
