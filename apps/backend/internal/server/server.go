@@ -71,6 +71,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/search"
 	"github.com/lopor-ai/lopor/pkg/secscan"
 	"github.com/lopor-ai/lopor/pkg/semanticcache"
+	"github.com/lopor-ai/lopor/pkg/simulation"
 	"github.com/lopor-ai/lopor/pkg/sqlsynth"
 	"github.com/lopor-ai/lopor/pkg/taskplanner"
 	"github.com/lopor-ai/lopor/pkg/testgen"
@@ -1118,6 +1119,70 @@ func NewServer(cfg Config) *fiber.App {
 		return response.Success(c, fiber.StatusOK, "Semantic cache invalidated successfully", fiber.Map{
 			"purged_entries": count,
 		})
+	})
+
+	// Multi-Agent Simulation Arena & Persona Scenario Engine Endpoints
+	simEngine := simulation.NewEngine()
+	wsGroup.Post("/:wsId/simulation/create", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req simulation.StartSimulationRequest
+		if err := c.BodyParser(&req); err != nil || req.Title == "" || req.Scenario == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Title and scenario are required for simulation", nil)
+		}
+		req.WorkspaceID = wsID
+		session, err := simEngine.CreateSession(req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "SIMULATION_INIT_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Simulation session initialized successfully", session)
+	})
+
+	wsGroup.Get("/:wsId/simulation/sessions", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		sessions := simEngine.ListSessions(wsID)
+		return response.Success(c, fiber.StatusOK, "Simulation sessions retrieved", sessions)
+	})
+
+	wsGroup.Get("/:wsId/simulation/:sessionId", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		sessionID := c.Params("sessionId")
+		session, err := simEngine.GetSession(wsID, sessionID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "SESSION_NOT_FOUND", "Simulation session not found", nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Simulation session retrieved", session)
+	})
+
+	wsGroup.Post("/:wsId/simulation/:sessionId/step", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		sessionID := c.Params("sessionId")
+		var req simulation.AdvanceStepRequest
+		_ = c.BodyParser(&req)
+		result, err := simEngine.AdvanceStep(wsID, sessionID, req)
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "STEP_ADVANCE_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Simulation turn advanced", result)
+	})
+
+	wsGroup.Post("/:wsId/simulation/:sessionId/run", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		sessionID := c.Params("sessionId")
+		report, err := simEngine.RunToCompletion(wsID, sessionID)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "SIMULATION_RUN_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Simulation executed to completion", report)
+	})
+
+	wsGroup.Get("/:wsId/simulation/:sessionId/report", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		sessionID := c.Params("sessionId")
+		report, err := simEngine.GetReport(wsID, sessionID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "REPORT_NOT_FOUND", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Simulation executive report compiled", report)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
