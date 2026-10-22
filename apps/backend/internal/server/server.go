@@ -70,6 +70,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/sandbox"
 	"github.com/lopor-ai/lopor/pkg/search"
 	"github.com/lopor-ai/lopor/pkg/secscan"
+	"github.com/lopor-ai/lopor/pkg/selfheal"
 	"github.com/lopor-ai/lopor/pkg/semanticcache"
 	"github.com/lopor-ai/lopor/pkg/simulation"
 	"github.com/lopor-ai/lopor/pkg/sqlsynth"
@@ -1183,6 +1184,44 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusNotFound, "REPORT_NOT_FOUND", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Simulation executive report compiled", report)
+	})
+
+	// Autonomous AI Workflow Self-Healing & Diagnostic Recovery Endpoints
+	selfHealingEngine := selfheal.NewEngine()
+	wsGroup.Post("/:wsId/selfheal/diagnose", func(c *fiber.Ctx) error {
+		var fault selfheal.ExecutionFault
+		if err := c.BodyParser(&fault); err != nil || fault.ErrorMessage == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Error message and diagnostics are required", nil)
+		}
+		strategy, severity := selfHealingEngine.Diagnose(fault)
+		return response.Success(c, fiber.StatusOK, "Fault diagnosed successfully", fiber.Map{
+			"recommended_strategy": strategy,
+			"severity":             severity,
+		})
+	})
+
+	wsGroup.Post("/:wsId/selfheal/remediate", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		type RemediatePayload struct {
+			Fault  selfheal.ExecutionFault    `json:"fault"`
+			Policy *selfheal.RemediationPolicy `json:"policy,omitempty"`
+		}
+		var payload RemediatePayload
+		if err := c.BodyParser(&payload); err != nil || payload.Fault.ErrorMessage == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Fault payload with error message is required", nil)
+		}
+		payload.Fault.WorkspaceID = wsID
+		result, err := selfHealingEngine.Remediate(c.Context(), payload.Fault, payload.Policy)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "REMEDIATION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Autonomous remediation cycle completed", result)
+	})
+
+	wsGroup.Get("/:wsId/selfheal/telemetry", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		telemetry := selfHealingEngine.GetTelemetry(wsID)
+		return response.Success(c, fiber.StatusOK, "Self-healing resilience telemetry retrieved", telemetry)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
