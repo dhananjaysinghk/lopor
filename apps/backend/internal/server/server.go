@@ -63,6 +63,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/orchestrator"
 	"github.com/lopor-ai/lopor/pkg/postmortem"
 	"github.com/lopor-ai/lopor/pkg/prompteval"
+	"github.com/lopor-ai/lopor/pkg/promptopt"
 	"github.com/lopor-ai/lopor/pkg/redteam"
 	"github.com/lopor-ai/lopor/pkg/reflection"
 	"github.com/lopor-ai/lopor/pkg/resilience"
@@ -1222,6 +1223,48 @@ func NewServer(cfg Config) *fiber.App {
 		wsID := c.Params("wsId")
 		telemetry := selfHealingEngine.GetTelemetry(wsID)
 		return response.Success(c, fiber.StatusOK, "Self-healing resilience telemetry retrieved", telemetry)
+	})
+
+	// Continuous Prompt Auto-Optimizer & Few-Shot Demonstration Synthesizer Endpoints
+	promptOptEngine := promptopt.NewEngine()
+	wsGroup.Post("/:wsId/promptopt/start", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req promptopt.StartOptimizationRequest
+		if err := c.BodyParser(&req); err != nil || req.Title == "" || req.BasePrompt == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Title and base_prompt are required for prompt optimization", nil)
+		}
+		req.WorkspaceID = wsID
+		job, err := promptOptEngine.StartOptimization(req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "OPTIMIZATION_INIT_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Prompt optimization tournament completed", job)
+	})
+
+	wsGroup.Get("/:wsId/promptopt/jobs", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		jobs := promptOptEngine.ListJobs(wsID)
+		return response.Success(c, fiber.StatusOK, "Prompt optimization jobs retrieved", jobs)
+	})
+
+	wsGroup.Get("/:wsId/promptopt/:jobId", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		jobID := c.Params("jobId")
+		job, err := promptOptEngine.GetJob(wsID, jobID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "JOB_NOT_FOUND", "Optimization job not found", nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Prompt optimization job retrieved", job)
+	})
+
+	wsGroup.Get("/:wsId/promptopt/:jobId/report", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		jobID := c.Params("jobId")
+		report, err := promptOptEngine.GetReport(wsID, jobID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "REPORT_NOT_FOUND", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Prompt optimization executive report compiled", report)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
