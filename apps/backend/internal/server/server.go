@@ -76,6 +76,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/simulation"
 	"github.com/lopor-ai/lopor/pkg/sqlsynth"
 	"github.com/lopor-ai/lopor/pkg/taskplanner"
+	"github.com/lopor-ai/lopor/pkg/temporalkg"
 	"github.com/lopor-ai/lopor/pkg/testgen"
 	"github.com/lopor-ai/lopor/pkg/totp"
 	"github.com/lopor-ai/lopor/pkg/translation"
@@ -1265,6 +1266,47 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusNotFound, "REPORT_NOT_FOUND", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Prompt optimization executive report compiled", report)
+	})
+
+	// Temporal Knowledge Graph & Dynamic Entity State Evolution Endpoints
+	temporalKGEngine := temporalkg.NewEngine()
+	wsGroup.Post("/:wsId/temporalkg/facts", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req temporalkg.IngestFactRequest
+		if err := c.BodyParser(&req); err != nil || req.SubjectName == "" || req.Predicate == "" || req.ObjectName == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Subject, predicate, and object are required", nil)
+		}
+		req.WorkspaceID = wsID
+		fact, err := temporalKGEngine.RecordFact(req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "INGEST_FACT_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Temporal fact recorded with conflict superseding", fact)
+	})
+
+	wsGroup.Post("/:wsId/temporalkg/query", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req temporalkg.TemporalQueryRequest
+		_ = c.BodyParser(&req)
+		req.WorkspaceID = wsID
+		result := temporalKGEngine.Query(req)
+		return response.Success(c, fiber.StatusOK, "Temporal query executed successfully", result)
+	})
+
+	wsGroup.Get("/:wsId/temporalkg/entities", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		entities := temporalKGEngine.ListEntities(wsID)
+		return response.Success(c, fiber.StatusOK, "Temporal entities retrieved", entities)
+	})
+
+	wsGroup.Get("/:wsId/temporalkg/entities/:entityId/evolution", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		entityID := c.Params("entityId")
+		evolution, err := temporalKGEngine.GetEntityEvolution(wsID, entityID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "ENTITY_NOT_FOUND", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Entity temporal evolution trajectory retrieved", evolution)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
