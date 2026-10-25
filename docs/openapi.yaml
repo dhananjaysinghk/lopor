@@ -944,4 +944,467 @@ paths:
         '200':
           description: Completion synthesized with provider fallback chain and latency metrics
 
+  # Phase 71: Multi-Step Human-in-the-Loop (HITL) Policy, Approval Gate & Intervention
+  /workspaces/{wsId}/hitl/policies:
+    post:
+      summary: Register or Update HITL Intervention Policy
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Policy registered with action boundaries, severity triggers, and approval limits
+    get:
+      summary: List Active Workspace Intervention Policies
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Active policies and risk tier definitions
+
+  /workspaces/{wsId}/hitl/evaluate:
+    post:
+      summary: Evaluate Agent Action Against HITL Policy
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Evaluation decision (AUTO_APPROVED, REQUIRES_APPROVAL, BLOCKED)
+
+  /workspaces/{wsId}/hitl/requests/{requestId}/decide:
+    post:
+      summary: Submit Human Decision on Pending Action
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Human decision recorded (APPROVED, REJECTED, AMENDED)
+
+  /workspaces/{wsId}/hitl/requests/pending:
+    get:
+      summary: List Pending Actions Requiring Human Approval
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pending queue with risk assessment, payload diff, and expiry timer
+
+  # Phase 72: Intelligent Conversational Query Disambiguation & Clarification
+  /workspaces/{wsId}/clarification/analyze:
+    post:
+      summary: Analyze Prompt Ambiguity and Generate Clarifying Options
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ambiguity evaluation and structured clarifying question with options
+
+  /workspaces/{wsId}/clarification/resolve:
+    post:
+      summary: Resolve Ambiguity and Synthesize Augmented Disambiguated Prompt
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Augmented query with user intent disambiguated
+
+  # Phase 73: Automated AI Evaluation Harness & LLM-as-a-Judge Scoring
+  /workspaces/{wsId}/judge/evaluate:
+    post:
+      summary: Score Model Output Against Evaluation Rubric Dimensions
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Normalized 0-100 evaluation scores, explanations, and pass/fail verdict
+
+  /workspaces/{wsId}/judge/pairwise:
+    post:
+      summary: Blind Pairwise Model Output Comparison (Model A vs Model B)
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pairwise verdict (MODEL_A_WINS, MODEL_B_WINS, TIE) with comparative rationale
+
+  /workspaces/{wsId}/judge/rubrics:
+    get:
+      summary: List Standard Workspace Evaluation Rubrics
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Available rubric templates (Factuality, Instruction Following, Conciseness)
+
+  # Phase 74: Adaptive Semantic Document Chunking & Recursive Parser
+  /workspaces/{wsId}/chunking/process:
+    post:
+      summary: Content-Aware Recursive Document Chunking
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Enriched structural chunks with breadcrumb headers, token counts, and key phrases
+
+  # Phase 75: Adaptive Semantic Vector Query Cache & Cost Elimination Gateway
+  /workspaces/{wsId}/cache/lookup:
+    post:
+      summary: Approximate Cosine Vector Query Cache Lookup
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cache hit/miss decision, cached response, similarity score, and tokens/latency saved
+
+  /workspaces/{wsId}/cache/store:
+    post:
+      summary: Store Model Completion in Semantic Vector Cache
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Query and completion indexed with unit vector embedding
+
+  /workspaces/{wsId}/cache/telemetry:
+    get:
+      summary: Get Workspace Semantic Cache Efficiency Telemetry
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cache hit rate percentage, lookups, tokens saved, and estimated USD financial savings
+
+  /workspaces/{wsId}/cache/invalidate:
+    delete:
+      summary: Invalidate Cached Completions for Workspace
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Invalidation count of purged cache entries
+
+  # Phase 76: Multi-Agent Autonomous Simulation Sandbox & Roleplay Arena
+  /workspaces/{wsId}/simulation/create:
+    post:
+      summary: Initialize Multi-Agent Simulation Scenario
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Simulation session spawned with configured agent personas
+
+  /workspaces/{wsId}/simulation/sessions:
+    get:
+      summary: List Simulation Sessions
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Active and completed simulation sessions
+
+  /workspaces/{wsId}/simulation/{sessionId}:
+    get:
+      summary: Retrieve Simulation Session Details and Turn Ledger
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session state, personas, turns, and consensus alignment score
+
+  /workspaces/{wsId}/simulation/{sessionId}/step:
+    post:
+      summary: Advance Simulation Turn (with Optional Human-in-the-Loop Input)
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Added turns, updated convergence score, and terminal status flags
+
+  /workspaces/{wsId}/simulation/{sessionId}/run:
+    post:
+      summary: Run Simulation Scenario Autonomously to Completion
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Completed simulation report with final verdict and action items
+
+  /workspaces/{wsId}/simulation/{sessionId}/report:
+    get:
+      summary: Get Simulation Executive Report & Sentiment Trajectory
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Executive report, action items, and sentiment trajectory array
+
+  # Phase 77: Autonomous AI Workflow Self-Healing & Fault Remediation
+  /workspaces/{wsId}/selfheal/diagnose:
+    post:
+      summary: Diagnose Execution Fault and Recommend Remediation Strategy
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Recommended remediation strategy and severity classification
+
+  /workspaces/{wsId}/selfheal/remediate:
+    post:
+      summary: Execute Multi-Phase Autonomous Self-Healing Pipeline
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Remediation outcome (HEALED, DEGRADED, FAILED) with attempt logs
+
+  /workspaces/{wsId}/selfheal/telemetry:
+    get:
+      summary: Get Workspace Self-Healing Resilience Telemetry
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Healing success rate, fault category distribution, and average recovery latency
+
+  # Phase 78: Continuous DSPy-Style Prompt Auto-Optimizer & Few-Shot Synthesizer
+  /workspaces/{wsId}/promptopt/start:
+    post:
+      summary: Start Multi-Strategy Prompt Optimization Tournament
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Tournament completed with candidate benchmarks and winning variant
+
+  /workspaces/{wsId}/promptopt/jobs:
+    get:
+      summary: List Workspace Prompt Optimization Tournaments
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Optimization jobs list with score improvement summaries
+
+  /workspaces/{wsId}/promptopt/{jobId}:
+    get:
+      summary: Get Optimization Tournament State and Candidates
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job details, all candidate variants, and baseline comparison
+
+  /workspaces/{wsId}/promptopt/{jobId}/report:
+    get:
+      summary: Get Executive Optimization Debrief with Visual Diff
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Executive report with side-by-side prompt diff and rollout recommendations
+
+  # Phase 79: Temporal Knowledge Graph & Dynamic Entity State Evolution
+  /workspaces/{wsId}/temporalkg/facts:
+    post:
+      summary: Ingest Temporal Relation Fact with Automated Conflict Superseding
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Fact recorded, prior conflicting facts superseded with valid interval update
+
+  /workspaces/{wsId}/temporalkg/query:
+    post:
+      summary: Execute Point-in-Time Time-Travel or Temporal Interval Query
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Temporally valid facts and synthesized markdown context for RAG grounding
+
+  /workspaces/{wsId}/temporalkg/entities:
+    get:
+      summary: List Temporal Entities in Workspace
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Registered temporal entities across domain categories
+
+  /workspaces/{wsId}/temporalkg/entities/{entityId}/evolution:
+    get:
+      summary: Retrieve Entity Full Chronological Mutation Trajectory
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: entityId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Chronological lifecycle events, relation creation, and superseding timestamps
+
 

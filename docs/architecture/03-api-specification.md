@@ -238,3 +238,72 @@ data: {"usage": {"prompt_tokens": 120, "completion_tokens": 45}}
 | `POST` | `/pools` | Configure multi-provider ensemble and balance strategies | Yes |
 | `POST` | `/execute` | Resilient completion with automatic cascading failover | Yes |
 
+### Human-in-the-Loop Policy & Intervention Gate (`/api/v1/workspaces/:wsId/hitl`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/policies` | Register/update HITL action boundaries and approval timeout policies | Yes |
+| `GET` | `/policies` | List active workspace intervention policies | Yes |
+| `POST` | `/evaluate` | Evaluate agent action against policy for automated/manual approval | Yes |
+| `POST` | `/requests/:requestId/decide` | Submit human decision (APPROVED, REJECTED, AMENDED) | Yes |
+| `GET` | `/requests/pending` | List pending actions requiring human approval with risk ratings | Yes |
+
+### Conversational Disambiguation & Clarification (`/api/v1/workspaces/:wsId/clarification`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/analyze` | Evaluate prompt ambiguity and synthesize clarifying options | Yes |
+| `POST` | `/resolve` | Resolve ambiguity and synthesize augmented disambiguated prompt | Yes |
+
+### AI Evaluation Harness & LLM-as-a-Judge (`/api/v1/workspaces/:wsId/judge`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/evaluate` | Score model output against rubric dimensions with normalized 0-100 score | Yes |
+| `POST` | `/pairwise` | Blind pairwise comparison (Model A vs Model B) with rationale | Yes |
+| `GET` | `/rubrics` | List standard workspace evaluation rubrics | Yes |
+
+### Content-Aware Document Chunking & Parser (`/api/v1/workspaces/:wsId/chunking`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/process` | Content-aware recursive chunking with breadcrumbs and key phrases | Yes |
+
+### Adaptive Semantic Vector Query Cache (`/api/v1/workspaces/:wsId/cache`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/lookup` | Approximate cosine vector cache lookup with token savings | Yes |
+| `POST` | `/store` | Store query and completion with 64-dim unit embedding | Yes |
+| `GET` | `/telemetry` | Retrieve hit rate, tokens saved, and financial USD savings | Yes |
+| `DELETE` | `/invalidate` | Purge cached entries for the workspace | Yes |
+
+### Multi-Agent Simulation Sandbox & Roleplay Arena (`/api/v1/workspaces/:wsId/simulation`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/create` | Initialize multi-agent scenario with preset or custom personas | Yes |
+| `GET` | `/sessions` | List active and past simulation sessions | Yes |
+| `GET` | `/:sessionId` | Retrieve session state, personas, turns, and convergence score | Yes |
+| `POST` | `/:sessionId/step` | Advance simulation turn with optional human-in-the-loop input | Yes |
+| `POST` | `/:sessionId/run` | Execute simulation autonomously to terminal state | Yes |
+| `GET` | `/:sessionId/report` | Compile executive report with action items and sentiment curve | Yes |
+
+### Autonomous Workflow Self-Healing & Fallback (`/api/v1/workspaces/:wsId/selfheal`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/diagnose` | Diagnose execution fault and recommend optimal repair strategy | Yes |
+| `POST` | `/remediate` | Execute multi-phase autonomous recovery pipeline | Yes |
+| `GET` | `/telemetry` | Retrieve workspace resilience telemetry and success rate | Yes |
+
+### Continuous Prompt Auto-Optimizer & Few-Shot Synthesizer (`/api/v1/workspaces/:wsId/promptopt`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/start` | Start multi-strategy prompt optimization tournament | Yes |
+| `GET` | `/jobs` | List prompt optimization jobs | Yes |
+| `GET` | `/:jobId` | Retrieve optimization tournament state and candidate variants | Yes |
+| `GET` | `/:jobId/report` | Compile executive debrief with visual diff and rollout guidance | Yes |
+
+### Temporal Knowledge Graph & Entity State Evolution (`/api/v1/workspaces/:wsId/temporalkg`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/facts` | Ingest temporal relation fact with automated conflict superseding | Yes |
+| `POST` | `/query` | Execute point-in-time time-travel or temporal interval query | Yes |
+| `GET` | `/entities` | List registered temporal entities across categories | Yes |
+| `GET` | `/entities/:entityId/evolution` | Retrieve full chronological mutation trajectory for an entity | Yes |
+
+
