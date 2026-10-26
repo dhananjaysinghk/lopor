@@ -82,6 +82,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/translation"
 	"github.com/lopor-ai/lopor/pkg/tts"
 	"github.com/lopor-ai/lopor/pkg/voice"
+	"github.com/lopor-ai/lopor/pkg/voiceagent"
 	"github.com/lopor-ai/lopor/pkg/webhook"
 	"github.com/lopor-ai/lopor/pkg/zipengine"
 )
@@ -1307,6 +1308,67 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusNotFound, "ENTITY_NOT_FOUND", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Entity temporal evolution trajectory retrieved", evolution)
+	})
+
+	// Conversational Voice Agent, VAD & Duplex Audio Endpoints
+	voiceAgentEngine := voiceagent.NewEngine()
+	wsGroup.Post("/:wsId/voiceagent/sessions", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req voiceagent.StartSessionRequest
+		_ = c.BodyParser(&req)
+		req.WorkspaceID = wsID
+		if req.UserID == "" {
+			req.UserID = "default_user"
+		}
+		session, err := voiceAgentEngine.StartSession(req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "SESSION_INIT_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Voice agent session initialized", session)
+	})
+
+	wsGroup.Post("/:wsId/voiceagent/sessions/:sessionId/chunk", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		sessionID := c.Params("sessionId")
+		type ChunkPayload struct {
+			PCMBytes        []byte `json:"pcm_bytes"`
+			ChunkDurationMs int    `json:"chunk_duration_ms"`
+		}
+		var payload ChunkPayload
+		if err := c.BodyParser(&payload); err != nil || len(payload.PCMBytes) == 0 {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_AUDIO_CHUNK", "Non-empty pcm_bytes are required", nil)
+		}
+		result, err := voiceAgentEngine.ProcessChunk(wsID, sessionID, payload.PCMBytes, payload.ChunkDurationMs)
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "AUDIO_PROCESSING_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Audio chunk processed", result)
+	})
+
+	wsGroup.Get("/:wsId/voiceagent/sessions/:sessionId", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		sessionID := c.Params("sessionId")
+		session, err := voiceAgentEngine.GetSession(wsID, sessionID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "SESSION_NOT_FOUND", "Voice session not found", nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Voice session retrieved", session)
+	})
+
+	wsGroup.Delete("/:wsId/voiceagent/sessions/:sessionId", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		sessionID := c.Params("sessionId")
+		err := voiceAgentEngine.EndSession(wsID, sessionID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "SESSION_NOT_FOUND", "Voice session not found", nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Voice session terminated successfully", nil)
+	})
+
+	wsGroup.Get("/:wsId/voiceagent/telemetry", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		telemetry := voiceAgentEngine.GetTelemetry(wsID)
+		return response.Success(c, fiber.StatusOK, "Voice agent session telemetry retrieved", telemetry)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
