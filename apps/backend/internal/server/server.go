@@ -78,6 +78,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/taskplanner"
 	"github.com/lopor-ai/lopor/pkg/temporalkg"
 	"github.com/lopor-ai/lopor/pkg/testgen"
+	"github.com/lopor-ai/lopor/pkg/toolsim"
 	"github.com/lopor-ai/lopor/pkg/totp"
 	"github.com/lopor-ai/lopor/pkg/translation"
 	"github.com/lopor-ai/lopor/pkg/tts"
@@ -1369,6 +1370,87 @@ func NewServer(cfg Config) *fiber.App {
 		wsID := c.Params("wsId")
 		telemetry := voiceAgentEngine.GetTelemetry(wsID)
 		return response.Success(c, fiber.StatusOK, "Voice agent session telemetry retrieved", telemetry)
+	})
+
+	// Autonomous Tool Sandbox, Synthetic API Mocking & Side-Effect Safety Simulation Endpoints
+	toolSimEngine := toolsim.NewEngine()
+	wsGroup.Get("/:wsId/toolsim/tools", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		tools := toolSimEngine.ListTools(wsID)
+		return response.Success(c, fiber.StatusOK, "Mock tools retrieved", tools)
+	})
+
+	wsGroup.Post("/:wsId/toolsim/tools", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var tool toolsim.MockTool
+		if err := c.BodyParser(&tool); err != nil || tool.Name == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Tool name and schema are required", nil)
+		}
+		tool.WorkspaceID = wsID
+		toolSimEngine.RegisterTool(tool)
+		return response.Success(c, fiber.StatusCreated, "Custom mock tool registered", tool)
+	})
+
+	wsGroup.Post("/:wsId/toolsim/sandboxes", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		type CreateSandboxPayload struct {
+			Title string `json:"title"`
+		}
+		var payload CreateSandboxPayload
+		_ = c.BodyParser(&payload)
+		if payload.Title == "" {
+			payload.Title = "Agent Tool Execution Dry-Run"
+		}
+		session, err := toolSimEngine.CreateSandbox(wsID, payload.Title)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "SANDBOX_INIT_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Dry-run sandbox session created", session)
+	})
+
+	wsGroup.Post("/:wsId/toolsim/sandboxes/:sessionId/execute", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		sessionID := c.Params("sessionId")
+		type ExecutePayload struct {
+			ToolName   string                 `json:"tool_name"`
+			Parameters map[string]interface{} `json:"parameters"`
+		}
+		var payload ExecutePayload
+		if err := c.BodyParser(&payload); err != nil || payload.ToolName == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Tool name is required", nil)
+		}
+		inv, err := toolSimEngine.ExecuteToolDryRun(wsID, sessionID, payload.ToolName, payload.Parameters)
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "EXECUTION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Tool executed in dry-run sandbox", inv)
+	})
+
+	wsGroup.Post("/:wsId/toolsim/simulate-plan", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req toolsim.ExecutePlanRequest
+		if err := c.BodyParser(&req); err != nil || len(req.Steps) == 0 {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_PLAN", "Plan must contain at least one step", nil)
+		}
+		req.WorkspaceID = wsID
+		if req.Title == "" {
+			req.Title = "Multi-Step Agent Plan Simulation"
+		}
+		report, err := toolSimEngine.ExecutePlanDryRun(req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "PLAN_SIMULATION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Multi-step plan simulated with blast radius report", report)
+	})
+
+	wsGroup.Get("/:wsId/toolsim/sandboxes/:sessionId/report", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		sessionID := c.Params("sessionId")
+		report, err := toolSimEngine.GetReport(wsID, sessionID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "REPORT_NOT_FOUND", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Sandbox blast radius report compiled", report)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
