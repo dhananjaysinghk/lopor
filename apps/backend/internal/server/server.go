@@ -32,6 +32,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/agenteval"
 	"github.com/lopor-ai/lopor/pkg/ai"
 	"github.com/lopor-ai/lopor/pkg/anonymizer"
+	"github.com/lopor-ai/lopor/pkg/auditproof"
 	"github.com/lopor-ai/lopor/pkg/clarification"
 	"github.com/lopor-ai/lopor/pkg/chunking"
 	"github.com/lopor-ai/lopor/pkg/codereview"
@@ -1451,6 +1452,70 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusNotFound, "REPORT_NOT_FOUND", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Sandbox blast radius report compiled", report)
+	})
+
+	// Enterprise Cryptographic Audit Proof & Merkle Ledger Endpoints
+	auditProofEngine := auditproof.NewEngine()
+	wsGroup.Post("/:wsId/auditproof/events", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req auditproof.RecordEventRequest
+		if err := c.BodyParser(&req); err != nil || req.EventType == "" || req.ActionSummary == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Event type and action summary are required", nil)
+		}
+		req.WorkspaceID = wsID
+		event, err := auditProofEngine.RecordEvent(req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "EVENT_LOG_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Cryptographic audit event recorded", event)
+	})
+
+	wsGroup.Post("/:wsId/auditproof/seal", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		block, err := auditProofEngine.SealBlock(wsID)
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "SEAL_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Active ledger block sealed with Merkle root", block)
+	})
+
+	wsGroup.Get("/:wsId/auditproof/proofs/:eventId", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		eventID := c.Params("eventId")
+		proof, err := auditProofEngine.GenerateProof(wsID, eventID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "PROOF_NOT_FOUND", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Cryptographic Merkle proof generated", proof)
+	})
+
+	wsGroup.Post("/:wsId/auditproof/verify-proof", func(c *fiber.Ctx) error {
+		type VerifyPayload struct {
+			LeafHash  string   `json:"leaf_hash"`
+			AuditPath []string `json:"audit_path"`
+			RootHash  string   `json:"root_hash"`
+		}
+		var payload VerifyPayload
+		if err := c.BodyParser(&payload); err != nil || payload.LeafHash == "" || payload.RootHash == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Leaf hash and root hash are required", nil)
+		}
+		isValid := auditProofEngine.VerifyProof(payload.LeafHash, payload.AuditPath, payload.RootHash)
+		return response.Success(c, fiber.StatusOK, "Proof verification result", fiber.Map{
+			"is_valid": isValid,
+		})
+	})
+
+	wsGroup.Get("/:wsId/auditproof/verify-integrity", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		result := auditProofEngine.VerifyIntegrity(wsID)
+		return response.Success(c, fiber.StatusOK, "Ledger integrity verification completed", result)
+	})
+
+	wsGroup.Get("/:wsId/auditproof/export", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		stdQuery := c.Query("standard", string(auditproof.ComplianceSOC2Type2))
+		bundle := auditProofEngine.ExportBundle(wsID, auditproof.ComplianceStandard(stdQuery))
+		return response.Success(c, fiber.StatusOK, "Compliance audit bundle exported", bundle)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
