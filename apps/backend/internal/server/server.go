@@ -74,6 +74,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/secscan"
 	"github.com/lopor-ai/lopor/pkg/selfheal"
 	"github.com/lopor-ai/lopor/pkg/semanticcache"
+	"github.com/lopor-ai/lopor/pkg/semanticdiff"
 	"github.com/lopor-ai/lopor/pkg/simulation"
 	"github.com/lopor-ai/lopor/pkg/sqlsynth"
 	"github.com/lopor-ai/lopor/pkg/taskplanner"
@@ -1516,6 +1517,22 @@ func NewServer(cfg Config) *fiber.App {
 		stdQuery := c.Query("standard", string(auditproof.ComplianceSOC2Type2))
 		bundle := auditProofEngine.ExportBundle(wsID, auditproof.ComplianceStandard(stdQuery))
 		return response.Success(c, fiber.StatusOK, "Compliance audit bundle exported", bundle)
+	})
+
+	// Intelligent Semantic Document Diffing & Intent-Preserving Shift Analyzer Endpoints
+	semanticDiffEngine := semanticdiff.NewEngine()
+	wsGroup.Post("/:wsId/semanticdiff/compare", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req semanticdiff.CompareRequest
+		if err := c.BodyParser(&req); err != nil || (req.OriginalText == "" && req.RevisedText == "") {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Original or revised text is required for comparison", nil)
+		}
+		req.WorkspaceID = wsID
+		result, err := semanticDiffEngine.Compare(req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "DIFF_COMPARISON_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Semantic difference analysis completed", result)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
