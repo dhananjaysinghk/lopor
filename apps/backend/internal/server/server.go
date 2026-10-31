@@ -42,6 +42,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/contextopt"
 	"github.com/lopor-ai/lopor/pkg/costcalc"
 	"github.com/lopor-ai/lopor/pkg/datagen"
+	"github.com/lopor-ai/lopor/pkg/datasynth"
 	"github.com/lopor-ai/lopor/pkg/dedup"
 	"github.com/lopor-ai/lopor/pkg/diffsynth"
 	"github.com/lopor-ai/lopor/pkg/docexport"
@@ -1533,6 +1534,38 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusInternalServerError, "DIFF_COMPARISON_FAILED", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Semantic difference analysis completed", result)
+	})
+
+	// Privacy-Preserving Synthetic Structured Data & Differential Privacy Generator Endpoints
+	dataSynthEngine := datasynth.NewEngine()
+	wsGroup.Post("/:wsId/datasynth/generate", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req datasynth.GenerateDatasetRequest
+		if err := c.BodyParser(&req); err != nil || req.Title == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Title is required for synthetic dataset generation", nil)
+		}
+		req.WorkspaceID = wsID
+		dataset, err := dataSynthEngine.GenerateDataset(req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "DATASET_GENERATION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Synthetic dataset generated successfully with differential privacy guarantees", dataset)
+	})
+
+	wsGroup.Get("/:wsId/datasynth/datasets", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		datasets := dataSynthEngine.ListDatasets(wsID)
+		return response.Success(c, fiber.StatusOK, "Synthetic datasets retrieved", datasets)
+	})
+
+	wsGroup.Get("/:wsId/datasynth/datasets/:datasetId", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		datasetID := c.Params("datasetId")
+		dataset, err := dataSynthEngine.GetDataset(wsID, datasetID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "DATASET_NOT_FOUND", "Synthetic dataset not found", nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Synthetic dataset retrieved", dataset)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
