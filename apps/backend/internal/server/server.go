@@ -47,6 +47,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/diffsynth"
 	"github.com/lopor-ai/lopor/pkg/docexport"
 	"github.com/lopor-ai/lopor/pkg/docgen"
+	"github.com/lopor-ai/lopor/pkg/docsync"
 	"github.com/lopor-ai/lopor/pkg/docvision"
 	"github.com/lopor-ai/lopor/pkg/email"
 	"github.com/lopor-ai/lopor/pkg/federation"
@@ -1566,6 +1567,64 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusNotFound, "DATASET_NOT_FOUND", "Synthetic dataset not found", nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Synthetic dataset retrieved", dataset)
+	})
+
+	// Decentralized Collaborative Document Synchronization & Conflict Arbitration Endpoints
+	docSyncEngine := docsync.NewEngine()
+	wsGroup.Post("/:wsId/docsync/:docId/revisions", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		docID := c.Params("docId")
+		var req docsync.CommitRevisionRequest
+		if err := c.BodyParser(&req); err != nil || req.Content == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Content is required to commit document revision", nil)
+		}
+		req.WorkspaceID = wsID
+		req.DocumentID = docID
+		if req.AuthorID == "" {
+			req.AuthorID = "default_author"
+		}
+		rev, err := docSyncEngine.CommitRevision(req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "REVISION_COMMIT_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Document revision committed successfully", rev)
+	})
+
+	wsGroup.Get("/:wsId/docsync/:docId/revisions", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		docID := c.Params("docId")
+		revs, err := docSyncEngine.ListRevisions(wsID, docID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "DOCUMENT_NOT_FOUND", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Document revision history retrieved", revs)
+	})
+
+	wsGroup.Get("/:wsId/docsync/:docId/revisions/:revId", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		docID := c.Params("docId")
+		revID := c.Params("revId")
+		rev, err := docSyncEngine.GetRevision(wsID, docID, revID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "REVISION_NOT_FOUND", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Document revision snapshot retrieved", rev)
+	})
+
+	wsGroup.Post("/:wsId/docsync/:docId/merge", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		docID := c.Params("docId")
+		var req docsync.MergeRevisionsRequest
+		if err := c.BodyParser(&req); err != nil || req.LocalRevID == "" || req.RemoteRevID == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "local_rev_id and remote_rev_id are required for merge", nil)
+		}
+		req.WorkspaceID = wsID
+		req.DocumentID = docID
+		result, err := docSyncEngine.MergeRevisions(req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "MERGE_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Revisions synchronized and merged", result)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
