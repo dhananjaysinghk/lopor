@@ -58,6 +58,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/indexopt"
 	"github.com/lopor-ai/lopor/pkg/intent"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
+	"github.com/lopor-ai/lopor/pkg/knowledgemerge"
 	"github.com/lopor-ai/lopor/pkg/lineage"
 	"github.com/lopor-ai/lopor/pkg/llmjudge"
 	"github.com/lopor-ai/lopor/pkg/memory"
@@ -1625,6 +1626,40 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusInternalServerError, "MERGE_FAILED", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Revisions synchronized and merged", result)
+	})
+
+	// Multi-Source Knowledge Graph Merging, Entity Resolution & Fact Contradiction Arbiter Endpoints
+	knowledgeMergeEngine := knowledgemerge.NewEngine()
+	wsGroup.Post("/:wsId/knowledgemerge/reconcile", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req knowledgemerge.IngestKnowledgeGraphRequest
+		if err := c.BodyParser(&req); err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Invalid knowledge graph payload", nil)
+		}
+		req.WorkspaceID = wsID
+		result, err := knowledgeMergeEngine.IngestAndReconcile(req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "RECONCILIATION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Knowledge graph reconciled and conflicts resolved", result)
+	})
+
+	wsGroup.Get("/:wsId/knowledgemerge/graph", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		graph, err := knowledgeMergeEngine.GetGraph(wsID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "GRAPH_NOT_FOUND", "Workspace knowledge graph not found", nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Unified workspace knowledge graph retrieved", graph)
+	})
+
+	wsGroup.Get("/:wsId/knowledgemerge/conflicts", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		conflicts, err := knowledgeMergeEngine.ListConflicts(wsID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "GRAPH_NOT_FOUND", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Knowledge graph conflict audit log retrieved", conflicts)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
