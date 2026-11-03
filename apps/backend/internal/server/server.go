@@ -30,6 +30,7 @@ import (
 	"github.com/lopor-ai/lopor/internal/domain/workspace"
 	"github.com/lopor-ai/lopor/internal/middleware"
 	"github.com/lopor-ai/lopor/pkg/agenteval"
+	"github.com/lopor-ai/lopor/pkg/agentnetwork"
 	"github.com/lopor-ai/lopor/pkg/ai"
 	"github.com/lopor-ai/lopor/pkg/anonymizer"
 	"github.com/lopor-ai/lopor/pkg/auditproof"
@@ -1660,6 +1661,81 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusNotFound, "GRAPH_NOT_FOUND", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Knowledge graph conflict audit log retrieved", conflicts)
+	})
+
+	// Autonomous Multi-Agent Network, Dynamic Swarm Topology & Consensus Bus Endpoints
+	agentNetworkEngine := agentnetwork.NewEngine()
+	wsGroup.Post("/:wsId/agentnetwork/networks", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req agentnetwork.CreateNetworkRequest
+		if err := c.BodyParser(&req); err != nil || req.Title == "" || req.Goal == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Title and goal are required for agent network", nil)
+		}
+		req.WorkspaceID = wsID
+		network, err := agentNetworkEngine.CreateNetwork(req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "NETWORK_CREATE_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Agent collaboration network spawned", network)
+	})
+
+	wsGroup.Get("/:wsId/agentnetwork/networks", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		networks := agentNetworkEngine.ListNetworks(wsID)
+		return response.Success(c, fiber.StatusOK, "Agent collaboration networks retrieved", networks)
+	})
+
+	wsGroup.Get("/:wsId/agentnetwork/networks/:networkId", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		networkID := c.Params("networkId")
+		network, err := agentNetworkEngine.GetNetwork(wsID, networkID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "NETWORK_NOT_FOUND", "Agent network not found", nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Agent network topology retrieved", network)
+	})
+
+	wsGroup.Post("/:wsId/agentnetwork/networks/:networkId/messages", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		networkID := c.Params("networkId")
+		var req agentnetwork.SendMessageRequest
+		if err := c.BodyParser(&req); err != nil || req.SenderID == "" || req.RecipientID == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "SenderID and RecipientID are required", nil)
+		}
+		msg, err := agentNetworkEngine.SendMessage(wsID, networkID, req)
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "MESSAGE_SEND_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Inter-agent message routed successfully", msg)
+	})
+
+	wsGroup.Post("/:wsId/agentnetwork/networks/:networkId/proposals", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		networkID := c.Params("networkId")
+		var req agentnetwork.CreateProposalRequest
+		if err := c.BodyParser(&req); err != nil || req.ProposerID == "" || req.Title == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "ProposerID and title are required", nil)
+		}
+		prop, err := agentNetworkEngine.CreateProposal(wsID, networkID, req)
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "PROPOSAL_CREATE_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Consensus proposal created", prop)
+	})
+
+	wsGroup.Post("/:wsId/agentnetwork/networks/:networkId/proposals/:proposalId/vote", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		networkID := c.Params("networkId")
+		proposalID := c.Params("proposalId")
+		var req agentnetwork.CastVoteRequest
+		if err := c.BodyParser(&req); err != nil || req.NodeID == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "NodeID is required to cast vote", nil)
+		}
+		updatedProp, err := agentNetworkEngine.CastVote(wsID, networkID, proposalID, req)
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "VOTE_CAST_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Consensus ballot recorded", updatedProp)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
