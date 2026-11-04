@@ -80,6 +80,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/semanticcache"
 	"github.com/lopor-ai/lopor/pkg/semanticdiff"
 	"github.com/lopor-ai/lopor/pkg/simulation"
+	"github.com/lopor-ai/lopor/pkg/specsynth"
 	"github.com/lopor-ai/lopor/pkg/sqlsynth"
 	"github.com/lopor-ai/lopor/pkg/taskplanner"
 	"github.com/lopor-ai/lopor/pkg/temporalkg"
@@ -1736,6 +1737,47 @@ func NewServer(cfg Config) *fiber.App {
 			return response.Error(c, fiber.StatusBadRequest, "VOTE_CAST_FAILED", err.Error(), nil)
 		}
 		return response.Success(c, fiber.StatusOK, "Consensus ballot recorded", updatedProp)
+	})
+
+	// Autonomous Enterprise API Specification Synthesizer & Schema Compliance Engine Endpoints
+	specSynthEngine := specsynth.NewEngine()
+	wsGroup.Post("/:wsId/specsynth/generate", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req specsynth.GenerateSpecRequest
+		if err := c.BodyParser(&req); err != nil || req.Title == "" || req.InputPayload == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Title and input_payload are required", nil)
+		}
+		req.WorkspaceID = wsID
+		spec, err := specSynthEngine.GenerateSpecification(req)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, "SPEC_GENERATION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusCreated, "Enterprise API specification synthesized successfully", spec)
+	})
+
+	wsGroup.Get("/:wsId/specsynth/specs", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		specs := specSynthEngine.ListSpecifications(wsID)
+		return response.Success(c, fiber.StatusOK, "Synthesized specifications retrieved", specs)
+	})
+
+	wsGroup.Get("/:wsId/specsynth/specs/:specId", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		specID := c.Params("specId")
+		spec, err := specSynthEngine.GetSpecification(wsID, specID)
+		if err != nil {
+			return response.Error(c, fiber.StatusNotFound, "SPEC_NOT_FOUND", "Specification not found", nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Synthesized specification retrieved", spec)
+	})
+
+	wsGroup.Post("/:wsId/specsynth/validate", func(c *fiber.Ctx) error {
+		var req specsynth.ValidateSpecRequest
+		if err := c.BodyParser(&req); err != nil || req.Content == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Content is required to validate specification", nil)
+		}
+		valResult := specSynthEngine.ValidateSpecification(req)
+		return response.Success(c, fiber.StatusOK, "Specification validation completed", valResult)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
