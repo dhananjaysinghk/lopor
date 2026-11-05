@@ -1407,4 +1407,606 @@ paths:
         '200':
           description: Chronological lifecycle events, relation creation, and superseding timestamps
 
+  # Phase 81: Conversational Voice Agent Session Manager, VAD & Duplex Audio
+  /workspaces/{wsId}/voiceagent/sessions:
+    post:
+      summary: Initialize Conversational Duplex Voice Agent Session
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Duplex voice session initialized with VAD parameters
+    get:
+      summary: List Voice Agent Sessions
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Active and completed voice sessions
+
+  /workspaces/{wsId}/voiceagent/sessions/{sessionId}/chunk:
+    post:
+      summary: Stream PCM Audio Chunk with Real-Time VAD & Barge-In
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Frame evaluation, speech boundary triggers, and synthesized response audio
+
+  /workspaces/{wsId}/voiceagent/sessions/{sessionId}:
+    get:
+      summary: Retrieve Voice Session State and Spoken Turns
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Full voice session state, turns, and interruption counters
+    delete:
+      summary: Terminate Active Voice Session
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session terminated successfully
+
+  /workspaces/{wsId}/voiceagent/telemetry:
+    get:
+      summary: Retrieve Workspace Voice Telemetry & TTFAB Latency
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Operational telemetry including average TTFAB, turn duration, and interruptions
+
+  # Phase 82: Autonomous Tool Sandbox, Synthetic API Mocking & Side-Effect Safety Simulation
+  /workspaces/{wsId}/toolsim/tools:
+    get:
+      summary: List Available Built-In and Workspace Custom Mock Tools
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Registered mock tools, parameter schemas, and risk tiers
+    post:
+      summary: Register Custom Mock Tool Definition
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Custom mock tool registered
+
+  /workspaces/{wsId}/toolsim/sandboxes:
+    post:
+      summary: Create Ephemeral Dry-Run Sandbox Session
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Dry-run sandbox session initialized
+
+  /workspaces/{wsId}/toolsim/sandboxes/{sessionId}/execute:
+    post:
+      summary: Execute Single Tool Call in Dry-Run Sandbox
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Execution logged with side-effects and virtual state update
+
+  /workspaces/{wsId}/toolsim/simulate-plan:
+    post:
+      summary: Execute Multi-Step Agent Plan in Dry-Run Sandbox
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Plan simulated with full blast radius and resource mutation report
+
+  /workspaces/{wsId}/toolsim/sandboxes/{sessionId}/report:
+    get:
+      summary: Retrieve Sandbox Blast Radius Safety Report
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Blast radius score, financial liabilities, and approval recommendations
+
+  # Phase 83: Enterprise Compliance, Merkle-Tree Cryptographic Audit Proof & Tamper-Evident Ledger
+  /workspaces/{wsId}/auditproof/events:
+    post:
+      summary: Record Cryptographic Audit Event in Immutable Ledger
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Cryptographic audit event logged with sequential hash chaining
+
+  /workspaces/{wsId}/auditproof/seal:
+    post:
+      summary: Seal Active Ledger Block with Merkle Root Hash
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ledger block sealed with cryptographic Merkle root
+
+  /workspaces/{wsId}/auditproof/proofs/{eventId}:
+    get:
+      summary: Generate Zero-Knowledge Merkle Inclusion Proof for Event
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Merkle proof with leaf hash, sibling audit path, and block root
+
+  /workspaces/{wsId}/auditproof/verify-proof:
+    post:
+      summary: Verify Merkle Inclusion Proof Against Root Hash
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Proof mathematical verification result
+
+  /workspaces/{wsId}/auditproof/verify-integrity:
+    get:
+      summary: Verify Full Cryptographic Ledger Chain Integrity
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Full chain audit verification report with tamper detection
+
+  /workspaces/{wsId}/auditproof/export:
+    get:
+      summary: Export Portable Regulatory Audit Bundle
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: standard
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Compliance bundle export for SOC2, EU AI Act, or HIPAA certification
+
+  # Phase 84: Intelligent Semantic Document Diffing & Contractual Risk Analyzer
+  /workspaces/{wsId}/semanticdiff/compare:
+    post:
+      summary: Semantic Document Diff and Contractual Shift Analysis
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Structural semantic deltas, contractual risk score, and human review flags
+
+  # Phase 85: Privacy-Preserving Synthetic Structured Data & Differential Privacy Generator
+  /workspaces/{wsId}/datasynth/generate:
+    post:
+      summary: Generate Synthetic Dataset with Differential Privacy Noise
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Synthetic dataset generated with Laplace noise and privacy report
+
+  /workspaces/{wsId}/datasynth/datasets:
+    get:
+      summary: List Workspace Synthetic Datasets
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Synthetic datasets list
+
+  /workspaces/{wsId}/datasynth/datasets/{datasetId}:
+    get:
+      summary: Retrieve Synthetic Dataset Records and Differential Privacy Metrics
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Dataset records, schema, and GDPR differential privacy metrics
+
+  # Phase 86: Decentralized Collaborative Document Synchronization & Conflict Arbitration
+  /workspaces/{wsId}/docsync/{docId}/revisions:
+    post:
+      summary: Commit Immutable Document Revision to Version DAG
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: docId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Document revision committed to DAG with author attribution
+    get:
+      summary: List Complete Revision Commit History for Document
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: docId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Complete chronological revision DAG
+
+  /workspaces/{wsId}/docsync/{docId}/revisions/{revId}:
+    get:
+      summary: Retrieve Historical Document Revision Snapshot
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: docId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: revId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document revision snapshot and content hash
+
+  /workspaces/{wsId}/docsync/{docId}/merge:
+    post:
+      summary: Reconcile and Merge Diverging Document Branches
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: docId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Synchronized merge outcome with conflict hunks or semantic resolution
+
+  # Phase 87: Multi-Source Knowledge Graph Merging & Fact Contradiction Arbiter
+  /workspaces/{wsId}/knowledgemerge/reconcile:
+    post:
+      summary: Ingest and Reconcile Cross-Source Knowledge Graphs
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Entity aliases unified and factual contradictions resolved
+
+  /workspaces/{wsId}/knowledgemerge/graph:
+    get:
+      summary: Retrieve Unified Workspace Knowledge Graph
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Canonical entities and verified relational facts
+
+  /workspaces/{wsId}/knowledgemerge/conflicts:
+    get:
+      summary: List Knowledge Graph Fact Contradictions Audit Log
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Factual contradictions, resolution strategies, and audit explanations
+
+  # Phase 88: Autonomous Multi-Agent Network, Dynamic Swarm Topology & Consensus Bus
+  /workspaces/{wsId}/agentnetwork/networks:
+    post:
+      summary: Spawn Autonomous Collaborative Agent Swarm Network
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Collaborative multi-agent network spawned with initial nodes
+    get:
+      summary: List Active Agent Collaboration Networks
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Active and completed agent networks
+
+  /workspaces/{wsId}/agentnetwork/networks/{networkId}:
+    get:
+      summary: Retrieve Agent Network Topology and Message Log
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: networkId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Full swarm topology, node statuses, messages, and proposals
+
+  /workspaces/{wsId}/agentnetwork/networks/{networkId}/messages:
+    post:
+      summary: Dispatch Inter-Agent Point-to-Point or Broadcast Message
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: networkId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Message routed across agent bus
+
+  /workspaces/{wsId}/agentnetwork/networks/{networkId}/proposals:
+    post:
+      summary: Create Formal Consensus Proposal for Swarm Voting
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: networkId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Consensus proposal initiated
+
+  /workspaces/{wsId}/agentnetwork/networks/{networkId}/proposals/{proposalId}/vote:
+    post:
+      summary: Cast Weighted Node Ballot on Consensus Proposal
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: networkId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: proposalId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Vote recorded and threshold evaluation executed
+
+  # Phase 89: Autonomous Enterprise API Specification Synthesizer & Schema Compliance
+  /workspaces/{wsId}/specsynth/generate:
+    post:
+      summary: Synthesize Enterprise API Specification (OpenAPI/GraphQL/Protobuf/TypeScript)
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Multi-standard API specification synthesized from code or payloads
+
+  /workspaces/{wsId}/specsynth/specs:
+    get:
+      summary: List Synthesized API Specifications
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Synthesized specifications list
+
+  /workspaces/{wsId}/specsynth/specs/{specId}:
+    get:
+      summary: Retrieve Synthesized API Specification and Formatted Schema
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: specId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Synthesized specification artifact and endpoints
+
+  /workspaces/{wsId}/specsynth/validate:
+    post:
+      summary: Validate API Specification Against Target Standard Compliance Rules
+      parameters:
+        - name: wsId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Validation result with standard syntax and semantic errors
+
+
 

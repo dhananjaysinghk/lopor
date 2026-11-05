@@ -306,4 +306,79 @@ data: {"usage": {"prompt_tokens": 120, "completion_tokens": 45}}
 | `GET` | `/entities` | List registered temporal entities across categories | Yes |
 | `GET` | `/entities/:entityId/evolution` | Retrieve full chronological mutation trajectory for an entity | Yes |
 
+### Conversational Voice Agent & VAD Duplex Audio (`/api/v1/workspaces/:wsId/voiceagent`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/sessions` | Initialize duplex voice session with VAD parameters | Yes |
+| `POST` | `/sessions/:sessionId/chunk` | Stream PCM audio chunks with real-time VAD and barge-in | Yes |
+| `GET` | `/sessions/:sessionId` | Retrieve voice session state, turns, and interruption counts | Yes |
+| `DELETE` | `/sessions/:sessionId` | Terminate active voice session | Yes |
+| `GET` | `/telemetry` | Retrieve workspace voice telemetry and TTFAB latency | Yes |
+
+### Autonomous Tool Sandbox & Side-Effect Safety Simulation (`/api/v1/workspaces/:wsId/toolsim`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/tools` | List built-in and workspace mock tools with risk levels | Yes |
+| `POST` | `/tools` | Register custom mock tool schema and default mock response | Yes |
+| `POST` | `/sandboxes` | Create ephemeral dry-run sandbox session | Yes |
+| `POST` | `/sandboxes/:sessionId/execute` | Execute single tool call in dry-run mode | Yes |
+| `POST` | `/simulate-plan` | Execute multi-step agent plan with blast radius report | Yes |
+| `GET` | `/sandboxes/:sessionId/report` | Retrieve blast radius safety report and financial liabilities | Yes |
+
+### Cryptographic Audit Proof & Merkle Ledger (`/api/v1/workspaces/:wsId/auditproof`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/events` | Record immutable cryptographic audit event with hash chaining | Yes |
+| `POST` | `/seal` | Manually seal active ledger block with Merkle root | Yes |
+| `GET` | `/proofs/:eventId` | Generate zero-knowledge Merkle inclusion proof for event | Yes |
+| `POST` | `/verify-proof` | Verify Merkle inclusion proof against root hash | Yes |
+| `GET` | `/verify-integrity` | Traverse and verify full cryptographic ledger chain integrity | Yes |
+| `GET` | `/export` | Export portable regulatory audit bundle (SOC2, EU AI Act, HIPAA) | Yes |
+
+### Semantic Document Diff & Contractual Risk Analyzer (`/api/v1/workspaces/:wsId/semanticdiff`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/compare` | Semantic document diff, contractual shift, and risk scoring | Yes |
+
+### Privacy-Preserving Synthetic Data & Differential Privacy (`/api/v1/workspaces/:wsId/datasynth`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/generate` | Generate synthetic dataset with differential privacy noise | Yes |
+| `GET` | `/datasets` | List workspace synthetic datasets | Yes |
+| `GET` | `/datasets/:datasetId` | Retrieve synthetic dataset records and GDPR privacy metrics | Yes |
+
+### Collaborative Document Sync & Conflict Arbitration (`/api/v1/workspaces/:wsId/docsync`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/:docId/revisions` | Commit immutable document revision to DAG | Yes |
+| `GET` | `/:docId/revisions` | List complete chronological revision DAG for document | Yes |
+| `GET` | `/:docId/revisions/:revId` | Retrieve historical revision snapshot | Yes |
+| `POST` | `/:docId/merge` | Synchronize and merge diverging document branches | Yes |
+
+### Multi-Source Knowledge Graph Merging & Contradiction Arbiter (`/api/v1/workspaces/:wsId/knowledgemerge`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/reconcile` | Ingest and reconcile cross-source knowledge graphs | Yes |
+| `GET` | `/graph` | Retrieve unified canonical workspace knowledge graph | Yes |
+| `GET` | `/conflicts` | List knowledge graph fact contradictions audit log | Yes |
+
+### Autonomous Multi-Agent Network & Consensus Bus (`/api/v1/workspaces/:wsId/agentnetwork`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/networks` | Spawn collaborative multi-agent swarm network | Yes |
+| `GET` | `/networks` | List active agent collaboration networks | Yes |
+| `GET` | `/networks/:networkId` | Retrieve agent network topology, message log, and proposals | Yes |
+| `POST` | `/networks/:networkId/messages` | Dispatch inter-agent routed message or broadcast | Yes |
+| `POST` | `/networks/:networkId/proposals` | Create formal consensus proposal for swarm voting | Yes |
+| `POST` | `/networks/:networkId/proposals/:proposalId/vote` | Cast weighted node ballot on consensus proposal | Yes |
+
+### Enterprise API Specification Synthesizer & Schema Compliance (`/api/v1/workspaces/:wsId/specsynth`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/generate` | Synthesize API spec (OpenAPI, GraphQL, Protobuf, TypeScript) | Yes |
+| `GET` | `/specs` | List synthesized API specifications | Yes |
+| `GET` | `/specs/:specId` | Retrieve synthesized API specification and schema artifact | Yes |
+| `POST` | `/validate` | Validate API specification against target standard rules | Yes |
+
+
 
