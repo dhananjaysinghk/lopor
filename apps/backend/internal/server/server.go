@@ -58,6 +58,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/hitl"
 	"github.com/lopor-ai/lopor/pkg/indexopt"
 	"github.com/lopor-ai/lopor/pkg/intent"
+	"github.com/lopor-ai/lopor/pkg/intentengine"
 	"github.com/lopor-ai/lopor/pkg/jobqueue"
 	"github.com/lopor-ai/lopor/pkg/knowledgemerge"
 	"github.com/lopor-ai/lopor/pkg/lineage"
@@ -1778,6 +1779,33 @@ func NewServer(cfg Config) *fiber.App {
 		}
 		valResult := specSynthEngine.ValidateSpecification(req)
 		return response.Success(c, fiber.StatusOK, "Specification validation completed", valResult)
+	})
+
+	// Intelligent Intent-Aware Dynamic Model Router, Complexity Scorer & Cost Arbitrator Endpoints
+	intentRouterEngine := intentengine.NewEngine()
+	wsGroup.Post("/:wsId/intentengine/route", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req intentengine.RoutePromptRequest
+		if err := c.BodyParser(&req); err != nil || req.Prompt == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Prompt is required for model routing", nil)
+		}
+		req.WorkspaceID = wsID
+		decision, err := intentRouterEngine.Route(req)
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "ROUTING_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Optimal model selected and routed", decision)
+	})
+
+	wsGroup.Get("/:wsId/intentengine/telemetry", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		telemetry := intentRouterEngine.GetTelemetry(wsID)
+		return response.Success(c, fiber.StatusOK, "Workspace routing telemetry retrieved", telemetry)
+	})
+
+	wsGroup.Get("/:wsId/intentengine/candidates", func(c *fiber.Ctx) error {
+		candidates := intentRouterEngine.GetCandidates()
+		return response.Success(c, fiber.StatusOK, "Active model routing candidates retrieved", candidates)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
