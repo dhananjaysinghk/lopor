@@ -72,6 +72,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/promptopt"
 	"github.com/lopor-ai/lopor/pkg/redteam"
 	"github.com/lopor-ai/lopor/pkg/reflection"
+	"github.com/lopor-ai/lopor/pkg/reranker"
 	"github.com/lopor-ai/lopor/pkg/resilience"
 	"github.com/lopor-ai/lopor/pkg/response"
 	"github.com/lopor-ai/lopor/pkg/sandbox"
@@ -1806,6 +1807,30 @@ func NewServer(cfg Config) *fiber.App {
 	wsGroup.Get("/:wsId/intentengine/candidates", func(c *fiber.Ctx) error {
 		candidates := intentRouterEngine.GetCandidates()
 		return response.Success(c, fiber.StatusOK, "Active model routing candidates retrieved", candidates)
+	})
+
+	// Real-Time Adaptive RAG Re-Ranking, Cross-Encoder Scoring & Lost-in-the-Middle Context Pruner Endpoints
+	rerankerEngine := reranker.NewEngine()
+	wsGroup.Post("/:wsId/reranker/rerank", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req reranker.ReRankRequest
+		if err := c.BodyParser(&req); err != nil || req.Query == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Query is required for reranking", nil)
+		}
+		if len(req.Chunks) == 0 {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Candidate chunks list cannot be empty", nil)
+		}
+		result, err := rerankerEngine.ReRank(c.Context(), wsID, req)
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "RERANK_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Context chunks rescored and reranked successfully", result)
+	})
+
+	wsGroup.Get("/:wsId/reranker/metrics", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		metrics := rerankerEngine.GetMetrics(wsID)
+		return response.Success(c, fiber.StatusOK, "Workspace reranker telemetry retrieved", metrics)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
