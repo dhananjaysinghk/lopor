@@ -54,6 +54,7 @@ import (
 	"github.com/lopor-ai/lopor/pkg/federation"
 	"github.com/lopor-ai/lopor/pkg/gitops"
 	"github.com/lopor-ai/lopor/pkg/graphrag"
+	"github.com/lopor-ai/lopor/pkg/grounding"
 	"github.com/lopor-ai/lopor/pkg/guardrails"
 	"github.com/lopor-ai/lopor/pkg/hitl"
 	"github.com/lopor-ai/lopor/pkg/indexopt"
@@ -1831,6 +1832,31 @@ func NewServer(cfg Config) *fiber.App {
 		wsID := c.Params("wsId")
 		metrics := rerankerEngine.GetMetrics(wsID)
 		return response.Success(c, fiber.StatusOK, "Workspace reranker telemetry retrieved", metrics)
+	})
+
+	// Enterprise AI Groundedness, Claim-Level Fact Verification & Citation Attribution Endpoints
+	groundingEngine := grounding.NewEngine()
+	wsGroup.Post("/:wsId/grounding/verify", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		var req grounding.VerifyGroundingRequest
+		if err := c.BodyParser(&req); err != nil || req.GeneratedResponse == "" {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Generated response is required for grounding verification", nil)
+		}
+		if len(req.SourceEvidences) == 0 {
+			return response.Error(c, fiber.StatusBadRequest, "INVALID_INPUT", "Source evidences list cannot be empty", nil)
+		}
+		req.WorkspaceID = wsID
+		report, err := groundingEngine.VerifyGrounding(c.Context(), req)
+		if err != nil {
+			return response.Error(c, fiber.StatusBadRequest, "GROUNDING_VERIFICATION_FAILED", err.Error(), nil)
+		}
+		return response.Success(c, fiber.StatusOK, "Grounding verification completed successfully", report)
+	})
+
+	wsGroup.Get("/:wsId/grounding/metrics", func(c *fiber.Ctx) error {
+		wsID := c.Params("wsId")
+		metrics := groundingEngine.GetMetrics(wsID)
+		return response.Success(c, fiber.StatusOK, "Workspace grounding telemetry retrieved", metrics)
 	})
 
 	// RAG Vector & File Ingestion Endpoints
